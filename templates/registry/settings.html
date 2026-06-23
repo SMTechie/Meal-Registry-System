@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="settings-page">
+  <header class="settings-hero">
+    <div>
+      <span class="eyebrow">Tenant control plane</span>
+      <h1>System Settings</h1>
+      <p>Manage the school identity, QR ticket delivery, and secure outbound mail configuration for this registry.</p>
+    </div>
+    <div class="settings-status-strip" aria-label="Configuration status">
+      <span class="status-badge success"><i class="bi bi-shield-check" aria-hidden="true"></i> Brand profile active</span>
+      <span class="status-badge"><i class="bi bi-envelope-check" aria-hidden="true"></i> Email delivery: {{ email_form.instance.get_auth_mode_display }}</span>
+      {% if email_form.instance.smtp_use_tls %}
+        <span class="status-badge success"><i class="bi bi-lock" aria-hidden="true"></i> TLS enabled</span>
+      {% else %}
+        <span class="status-badge warning"><i class="bi bi-unlock" aria-hidden="true"></i> TLS disabled</span>
+      {% endif %}
+    </div>
+  </header>
+
+  <section class="settings-stack">
+    <form class="settings-card" method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <input type="hidden" name="section" value="branding">
+      <div class="settings-card-header">
+        <div class="settings-icon"><i class="bi bi-building-check" aria-hidden="true"></i></div>
+        <div>
+          <h2>Brand Identity</h2>
+          <p>School-level identity used across the portal, QR emails, and operational screens.</p>
+        </div>
+        <span class="section-chip">Public-facing</span>
+      </div>
+
+      <div class="brand-grid">
+        <div class="logo-upload-panel">
+          <span class="field-label">Logo</span>
+          <div class="logo-preview">
+            {% if branding_form.instance.logo %}
+              <img src="{{ branding_form.instance.logo.url }}" alt="{{ branding_form.instance.name }} logo">
+            {% else %}
+              <span>{{ branding_form.instance.name|first|default:"P" }}</span>
+            {% endif %}
+          </div>
+          <label class="file-upload-control" for="{{ branding_form.logo.id_for_label }}">
+            <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>
+            <span>Upload logo</span>
+            {{ branding_form.logo }}
+          </label>
+          <small>PNG or JPG works best. Keep the logo square where possible.</small>
+          {{ branding_form.logo.errors }}
+        </div>
+
+        <div class="settings-fields-panel">
+          <div class="field-row single">
+            <label for="{{ branding_form.name.id_for_label }}">School / company name</label>
+            {{ branding_form.name }}
+            {{ branding_form.name.errors }}
+          </div>
+          <div class="field-row">
+            <div>
+              <label for="{{ branding_form.contact_email.id_for_label }}">Contact email</label>
+              {{ branding_form.contact_email }}
+              {{ branding_form.contact_email.errors }}
+            </div>
+            <div>
+              <label for="{{ branding_form.contact_phone.id_for_label }}">Contact phone</label>
+              {{ branding_form.contact_phone }}
+              {{ branding_form.contact_phone.errors }}
+            </div>
+          </div>
+          <div class="field-row single">
+            <label for="{{ branding_form.address.id_for_label }}">Address</label>
+            {{ branding_form.address }}
+            {{ branding_form.address.errors }}
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-actions">
+        <button class="button primary enterprise-primary"><i class="bi bi-check2" aria-hidden="true"></i> Save branding</button>
+      </div>
+    </form>
+
+    <form class="settings-card email-card" method="post">
+      {% csrf_token %}
+      <input type="hidden" name="section" value="email">
+      <div class="settings-card-header">
+        <div class="settings-icon"><i class="bi bi-envelope-lock" aria-hidden="true"></i></div>
+        <div>
+          <h2>Email Delivery</h2>
+          <p>Used to deliver QR tickets and system notifications. Store secrets carefully and rotate them when staff changes occur.</p>
+        </div>
+        <span class="section-chip secure">Sensitive</span>
+      </div>
+
+      <div class="delivery-summary">
+        <div>
+          <span>Authentication</span>
+          <strong>{{ email_form.instance.get_auth_mode_display }}</strong>
+        </div>
+        <div>
+          <span>Sender</span>
+          <strong>{{ email_form.instance.from_email }}</strong>
+        </div>
+        <div>
+          <span>Transport security</span>
+          <strong>{% if email_form.instance.smtp_use_tls %}TLS enabled{% else %}TLS disabled{% endif %}</strong>
+        </div>
+      </div>
+
+      <div class="field-row three">
+        <div>
+          <label for="{{ email_form.auth_mode.id_for_label }}">Auth mode</label>
+          {{ email_form.auth_mode }}
+          {{ email_form.auth_mode.errors }}
+        </div>
+        <div>
+          <label for="{{ email_form.from_email.id_for_label }}">From email</label>
+          {{ email_form.from_email }}
+          {{ email_form.from_email.errors }}
+        </div>
+        <div class="toggle-field">
+          <span class="field-label">SMTP TLS</span>
+          <label class="toggle-control" for="{{ email_form.smtp_use_tls.id_for_label }}">
+            {{ email_form.smtp_use_tls }}
+            <span></span>
+            <strong>TLS enabled</strong>
+          </label>
+          {{ email_form.smtp_use_tls.errors }}
+        </div>
+      </div>
+
+      <div class="mail-config-grid">
+        <section class="mail-panel" data-auth-panel="SMTP">
+          <div class="mail-panel-head">
+            <i class="bi bi-hdd-network" aria-hidden="true"></i>
+            <div>
+              <h3>SMTP server</h3>
+              <p>Direct relay configuration for institutional mail servers.</p>
+            </div>
+          </div>
+          <div class="field-row">
+            <div>
+              <label for="{{ email_form.smtp_host.id_for_label }}">SMTP host</label>
+              {{ email_form.smtp_host }}
+              {{ email_form.smtp_host.errors }}
+            </div>
+            <div>
+              <label for="{{ email_form.smtp_port.id_for_label }}">SMTP port</label>
+              {{ email_form.smtp_port }}
+              {{ email_form.smtp_port.errors }}
+            </div>
+          </div>
+          <div class="field-row">
+            <div>
+              <label for="{{ email_form.smtp_username.id_for_label }}">SMTP username</label>
+              {{ email_form.smtp_username }}
+              {{ email_form.smtp_username.errors }}
+            </div>
+            <div>
+              <label for="{{ email_form.smtp_password.id_for_label }}">SMTP password</label>
+              <div class="secret-control">
+                <i class="bi bi-lock" aria-hidden="true"></i>
+                {{ email_form.smtp_password }}
+                <button type="button" data-reveal-secret>Show</button>
+              </div>
+              {{ email_form.smtp_password.errors }}
+            </div>
+          </div>
+        </section>
+
+        <section class="mail-panel" data-auth-panel="OAUTH">
+          <div class="mail-panel-head">
+            <i class="bi bi-key" aria-hidden="true"></i>
+            <div>
+              <h3>OAuth credentials</h3>
+              <p>Use delegated mail delivery for providers that require token-based access.</p>
+            </div>
+          </div>
+          <div class="field-row">
+            <div>
+              <label for="{{ email_form.oauth_provider.id_for_label }}">OAuth provider</label>
+              {{ email_form.oauth_provider }}
+              {{ email_form.oauth_provider.errors }}
+            </div>
+            <div>
+              <label for="{{ email_form.oauth_tenant_id.id_for_label }}">Tenant ID</label>
+              {{ email_form.oauth_tenant_id }}
+              {{ email_form.oauth_tenant_id.errors }}
+            </div>
+          </div>
+          <div class="field-row">
+            <div>
+              <label for="{{ email_form.oauth_client_id.id_for_label }}">Client ID</label>
+              {{ email_form.oauth_client_id }}
+              {{ email_form.oauth_client_id.errors }}
+            </div>
+            <div>
+              <label for="{{ email_form.oauth_client_secret.id_for_label }}">Client secret</label>
+              <div class="secret-control">
+                <i class="bi bi-lock" aria-hidden="true"></i>
+                {{ email_form.oauth_client_secret }}
+                <button type="button" data-reveal-secret>Show</button>
+              </div>
+              {{ email_form.oauth_client_secret.errors }}
+            </div>
+          </div>
+          <div class="field-row single">
+            <label for="{{ email_form.oauth_refresh_token.id_for_label }}">Refresh token</label>
+            <div class="secret-textarea" data-secret-textarea>
+              {{ email_form.oauth_refresh_token }}
+              <button type="button" data-reveal-token>Reveal token</button>
+            </div>
+            <small class="security-note"><i class="bi bi-shield-lock" aria-hidden="true"></i> Treat this token as a credential. Only administrators should update it.</small>
+            {{ email_form.oauth_refresh_token.errors }}
+          </div>
+        </section>
+      </div>
+
+      <div class="settings-actions">
+        <button class="button secondary-action" type="button"><i class="bi bi-send-check" aria-hidden="true"></i> Test email configuration</button>
+        <button class="button primary enterprise-primary"><i class="bi bi-check2" aria-hidden="true"></i> Save email</button>
+      </div>
+    </form>
+  </section>
+</section>
+
+<script>
+  (function () {
+    var authMode = document.getElementById("{{ email_form.auth_mode.id_for_label }}");
+    var panels = Array.from(document.querySelectorAll("[data-auth-panel]"));
+
+    function syncPanels() {
+      if (!authMode) return;
+      panels.forEach(function (panel) {
+        panel.classList.toggle("is-muted", panel.dataset.authPanel !== authMode.value);
+      });
+    }
+
+    if (authMode) {
+      authMode.addEventListener("change", syncPanels);
+      syncPanels();
+    }
+
+    document.querySelectorAll("[data-reveal-secret]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        var input = button.parentElement.querySelector("input");
+        if (!input) return;
+        var isHidden = input.type === "password";
+        input.type = isHidden ? "text" : "password";
+        button.textContent = isHidden ? "Hide" : "Show";
+      });
+    });
+
+    document.querySelectorAll("[data-reveal-token]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        var wrapper = button.closest("[data-secret-textarea]");
+        wrapper.classList.toggle("is-revealed");
+        button.textContent = wrapper.classList.contains("is-revealed") ? "Hide token" : "Reveal token";
+      });
+    });
+  })();
+</script>
+{% endblock %}

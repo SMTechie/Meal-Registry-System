@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="category-config-page">
+  <header class="ops-hero">
+    <div>
+      <span class="eyebrow">Service configuration</span>
+      <h1>{% if category %}Edit category{% else %}Create category{% endif %}</h1>
+      <p>Configure the service window, ticket rules and operational visibility for this meal category.</p>
+    </div>
+    <a class="button secondary-action" href="{% url 'category_list' %}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back to categories</a>
+  </header>
+
+  <form class="settings-card category-config-card" method="post">
+    {% csrf_token %}
+    <div class="settings-card-header">
+      <div class="settings-icon"><i class="bi bi-tags" aria-hidden="true"></i></div>
+      <div>
+        <h2>Category details</h2>
+        <p>These settings control how scanners classify QR ticket claims during the day.</p>
+      </div>
+      <span class="section-chip secure">Audited</span>
+    </div>
+
+    <div class="field-row">
+      <div>
+        <label for="{{ form.name.id_for_label }}">Category name</label>
+        {{ form.name }}
+        {{ form.name.errors }}
+      </div>
+      <div>
+        <label for="{{ form.description.id_for_label }}">Description</label>
+        {{ form.description }}
+        {{ form.description.errors }}
+      </div>
+    </div>
+
+    <div class="field-row three">
+      <div>
+        <label for="{{ form.starts_at.id_for_label }}">Start time</label>
+        {{ form.starts_at }}
+        {{ form.starts_at.errors }}
+      </div>
+      <div>
+        <label for="{{ form.ends_at.id_for_label }}">End time</label>
+        {{ form.ends_at }}
+        {{ form.ends_at.errors }}
+      </div>
+      <div>
+        <label for="{{ form.daily_limit_per_user.id_for_label }}">Capacity limit</label>
+        {{ form.daily_limit_per_user }}
+        <small>{{ form.daily_limit_per_user.help_text }}</small>
+        {{ form.daily_limit_per_user.errors }}
+      </div>
+    </div>
+
+    <div class="field-row three">
+      <div class="toggle-field">
+        <span class="field-label">Availability status</span>
+        <label class="toggle-control" for="{{ form.is_active.id_for_label }}">
+          {{ form.is_active }}
+          <span></span>
+          <strong>Active</strong>
+        </label>
+        {{ form.is_active.errors }}
+      </div>
+      <div>
+        <label for="{{ form.colour_tag.id_for_label }}">Colour tag</label>
+        {{ form.colour_tag }}
+        {{ form.colour_tag.errors }}
+      </div>
+      <div>
+        <label for="{{ form.display_order.id_for_label }}">Display order</label>
+        {{ form.display_order }}
+        <small>{{ form.display_order.help_text }}</small>
+        {{ form.display_order.errors }}
+      </div>
+    </div>
+
+    <section class="rules-panel">
+      <div>
+        <h3>Ticket rules</h3>
+        <p>Claims are limited per user, per category, per day. Scan attempts are fully audited with staff identity and timestamp.</p>
+      </div>
+      <span class="status-badge success"><i class="bi bi-shield-check" aria-hidden="true"></i> Enforced by scanner</span>
+    </section>
+
+    <div class="settings-actions">
+      <a class="button secondary-action" href="{% url 'category_list' %}">Cancel</a>
+      <button class="button primary enterprise-primary"><i class="bi bi-check2" aria-hidden="true"></i> Save category</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <span class="eyebrow">QR access code</span>
+    <h1>{{ target.get_full_name|default:target.username }}</h1>
+  </div>
+  <div class="page-actions">
+    <a class="button" href="{% url 'user_list' %}">Back to users</a>
+    <a class="button primary" href="{% url 'user_edit' target.id %}">Edit account</a>
+  </div>
+</section>
+
+<section class="user-detail-layout">
+  <div class="qr-display access-pass">
+    <div class="pass-topline">
+      <span>Meal access pass</span>
+      <span>{{ target.get_role_display }}</span>
+    </div>
+    <div class="qr-bubble">
+      <img src="{% url 'user_qr_image' target.id %}" alt="QR code for {{ target.username }}">
+    </div>
+    <div class="code-bubble">
+      <span>Access code</span>
+      <code>{{ target.qr_access_code }}</code>
+    </div>
+    {% if target.role == "USER" %}
+      <span class="qr-valid"><i class="bi bi-check2-circle" aria-hidden="true"></i> Valid meal ticket</span>
+    {% else %}
+      <span class="qr-invalid"><i class="bi bi-x-circle" aria-hidden="true"></i> Login identity only. Not valid for meal claims.</span>
+    {% endif %}
+  </div>
+
+  <div class="detail-panel">
+    <div class="detail-bubble detail-bubble-wide">
+      <span>Username</span>
+      <strong>{{ target.username }}</strong>
+    </div>
+    <div class="detail-bubble detail-bubble-wide">
+      <span>Full name</span>
+      <strong>{{ target.get_full_name|default:"-" }}</strong>
+    </div>
+    <div class="detail-bubble detail-bubble-wide">
+      <span>Email</span>
+      <strong>{{ target.email }}</strong>
+    </div>
+    <div class="detail-bubble">
+      <span>Account type</span>
+      <strong><span class="role-badge role-{{ target.role|lower }}">{{ target.get_role_display }}</span></strong>
+    </div>
+    <div class="detail-bubble">
+      <span>Status</span>
+      <strong>{{ target.is_active|yesno:"Active,Inactive" }}</strong>
+    </div>
+    <div class="detail-bubble detail-bubble-wide">
+      <span>Date joined</span>
+      <strong>{{ target.date_joined }}</strong>
+    </div>
+    {% if target.role == "STAFF" %}
+      <a class="button" href="{% url 'reset_password' target.id %}">Reset staff password</a>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

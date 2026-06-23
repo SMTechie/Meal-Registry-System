@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="auth-shell">
+  <div class="auth-hero">
+    <span class="eyebrow">Meal Registry System</span>
+    <h1>Secure meal access, scanned in seconds.</h1>
+    <p>Designed for controlled school meal allocation with QR tickets, staff accountability, configurable sessions, and clean audit trails.</p>
+    <div class="signal-grid">
+      <div><strong>QR</strong><span>Unique access ticket per user</span></div>
+      <div><strong>RBAC</strong><span>Staff, Admin and Super Admin portals</span></div>
+      <div><strong>Audit</strong><span>Every login and scan timestamped</span></div>
+    </div>
+  </div>
+  <aside class="auth-panel">
+    <span class="eyebrow">Pop In Solutions</span>
+    <h1>Sign in</h1>
+    <p>Use your assigned account to continue to the scanner or administration portal.</p>
+    <form method="post">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="message error">{{ form.non_field_errors }}</div>
+      {% endif %}
+      <div class="field">
+        <label for="{{ form.username.id_for_label }}">Username</label>
+        {{ form.username }}
+      </div>
+      <div class="field">
+        <label for="{{ form.password.id_for_label }}">Password</label>
+        {{ form.password }}
+      </div>
+      <button class="primary login-button">Sign in</button>
+    </form>
+    <p class="auth-note">Powered By <a href="https://popinsolutions.co.za">Pop In Solutions</a></p>
+  </aside>
+</section>
+{% endblock %}

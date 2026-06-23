@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head admin-head">
+  <div>
+    <span class="eyebrow">DevSecOps meal operations</span>
+    <h1>Meal Registry</h1>
+    <p class="page-subtitle">Secure QR access, staff accountability and session-based meal control.</p>
+  </div>
+  <a class="button primary" href="{% url 'user_create' %}"><i class="bi bi-person-plus" aria-hidden="true"></i> Create user</a>
+</section>
+<section class="metrics">
+  <div>
+    <i class="bi bi-people-fill metric-icon" aria-hidden="true"></i>
+    <strong>{{ user_count }}</strong>
+    <span>Total users</span>
+  </div>
+  <div>
+    <i class="bi bi-qr-code-scan metric-icon" aria-hidden="true"></i>
+    <strong>{{ scan_count }}</strong>
+    <span>Total scans</span>
+  </div>
+  <div>
+    <i class="bi bi-tags-fill metric-icon" aria-hidden="true"></i>
+    <strong>{{ categories|length }}</strong>
+    <span>Total categories</span>
+  </div>
+</section>
+<section>
+  <div class="section-title">
+    <div>
+      <span class="eyebrow">Audit trail</span>
+      <h2>Recent scans</h2>
+    </div>
+  </div>
+  <table>
+    <thead><tr><th>Time</th><th>User</th><th>Category</th><th>Status</th><th>Staff</th><th>Reason</th></tr></thead>
+    <tbody>
+    {% for scan in recent_scans %}
+      <tr>
+        <td>{{ scan.scanned_at }}</td>
+        <td>{{ scan.user|default:"Unknown" }}</td>
+        <td>{{ scan.category|default:"-" }}</td>
+        <td><span class="status {{ scan.status|lower }}">{{ scan.status }}</span></td>
+        <td>{{ scan.scanned_by }}</td>
+        <td>{{ scan.reason }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="6">No scans recorded yet.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

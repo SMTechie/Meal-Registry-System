@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<section class="scan-layout">
+  <div class="scanner-panel">
+    <span class="eyebrow">Active meal session</span>
+    <h1>Scan meal QR</h1>
+    <p class="page-subtitle">
+      {% if current_category %}
+        Scanning for {{ current_category.name }}.
+      {% else %}
+        No active meal category for the current time.
+      {% endif %}
+    </p>
+    <div class="camera-frame">
+      <video id="camera" autoplay playsinline muted></video>
+      <div class="scan-reticle" aria-hidden="true"></div>
+    </div>
+    <canvas id="scanCanvas" hidden></canvas>
+    <div class="scan-actions">
+      <button class="primary" id="startScan" type="button">Start camera</button>
+      <button id="stopScan" type="button">Stop</button>
+    </div>
+  </div>
+  <aside class="scan-result" id="scanResult">
+    <h2>Ready</h2>
+    <p>Camera access requires a logged-in staff account.</p>
+    <form id="manualScan">
+      {% csrf_token %}
+      <label for="manualCode">Manual access code</label>
+      <input id="manualCode" name="code" autocomplete="off">
+      <button>Submit</button>
+    </form>
+  </aside>
+</section>
+
+<section class="scanned-session">
+  <div class="section-title">
+    <div>
+      <span class="eyebrow">Current session</span>
+      <h2>Scanned users</h2>
+    </div>
+  </div>
+  <div class="scan-list" id="scanList">
+    {% for scan in scanned_users %}
+      <div class="scan-person">
+        <strong>{{ scan.user.get_full_name|default:scan.user.username }}</strong>
+        <span>{{ scan.category.name }} at {{ scan.scanned_at|time:"H:i" }}</span>
+      </div>
+    {% empty %}
+      <div class="empty-state">No users scanned in this session yet.</div>
+    {% endfor %}
+  </div>
+</section>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="{% static 'js/scanner.js' %}"></script>
+{% endblock %}

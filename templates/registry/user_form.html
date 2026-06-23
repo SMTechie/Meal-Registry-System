@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="form-panel user-create-panel">
+  <span class="eyebrow">Account provisioning</span>
+  <h1>{% if mode == "edit" %}Edit account{% else %}Create account{% endif %}</h1>
+  <p class="form-intro">Every account receives a unique QR access code, but only a Meal Ticket User can use that QR code to claim meals.</p>
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="message error">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <div class="field-grid">
+      <div class="field">
+        <label for="{{ form.username.id_for_label }}">Username</label>
+        {{ form.username }}
+        {% if form.username.help_text %}<small>{{ form.username.help_text }}</small>{% endif %}
+        {{ form.username.errors }}
+      </div>
+      <div class="field">
+        <label for="{{ form.email.id_for_label }}">Email</label>
+        {{ form.email }}
+        {% if form.email.help_text %}<small>{{ form.email.help_text }}</small>{% endif %}
+        {{ form.email.errors }}
+      </div>
+      <div class="field">
+        <label for="{{ form.first_name.id_for_label }}">First name</label>
+        {{ form.first_name }}
+        {% if form.first_name.help_text %}<small>{{ form.first_name.help_text }}</small>{% endif %}
+        {{ form.first_name.errors }}
+      </div>
+      <div class="field">
+        <label for="{{ form.last_name.id_for_label }}">Last name</label>
+        {{ form.last_name }}
+        {% if form.last_name.help_text %}<small>{{ form.last_name.help_text }}</small>{% endif %}
+        {{ form.last_name.errors }}
+      </div>
+    </div>
+
+    {% if form.is_active %}
+      <div class="field active-field">
+        <label>{{ form.is_active }} Active account</label>
+        {% if form.is_active.help_text %}<small>{{ form.is_active.help_text }}</small>{% endif %}
+        {{ form.is_active.errors }}
+      </div>
+    {% endif %}
+
+    <section class="account-type-section">
+      <label>{{ form.role.label }}</label>
+      <p>{{ form.role.help_text }}</p>
+      <div class="role-options">
+        {% for radio in form.role %}
+          <label class="role-card" for="{{ radio.id_for_label }}">
+            {{ radio.tag }}
+            <span>
+              <strong>{{ radio.choice_label }}</strong>
+              {% if radio.choice_label == "User" %}
+                <small>Meal recipient. QR code is a meal ticket and is counted against meal limits.</small>
+              {% elif radio.choice_label == "Staff" %}
+                <small>Scanner operator. Can log in and scan meal tickets only.</small>
+              {% elif radio.choice_label == "Administrator" %}
+                <small>Can manage users, staff passwords, meal categories, limits, branding and email.</small>
+              {% else %}
+                <small>Full platform control, including all administrator capability.</small>
+              {% endif %}
+            </span>
+          </label>
+        {% endfor %}
+      </div>
+      {{ form.role.errors }}
+    </section>
+
+    {% if form.password1 %}
+      <div class="field-grid">
+        <div class="field">
+          <label for="{{ form.password1.id_for_label }}">Password</label>
+          {{ form.password1 }}
+          {{ form.password1.errors }}
+        </div>
+        <div class="field">
+          <label for="{{ form.password2.id_for_label }}">Password confirmation</label>
+          {{ form.password2 }}
+          {% if form.password2.help_text %}<small>{{ form.password2.help_text }}</small>{% endif %}
+          {{ form.password2.errors }}
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="qr-note">
+      <strong>QR code assignment</strong>
+      <span>{% if mode == "edit" %}The QR access code remains fixed to this account. Staff and admin QR codes are not accepted as meal tickets.{% else %}The system generates the unique QR access code automatically when this account is saved. Staff and admin QR codes are not accepted as meal tickets.{% endif %}</span>
+    </div>
+    <button class="primary">{% if mode == "edit" %}Save changes{% else %}Create account{% endif %}</button>
+    {% if mode == "edit" %}<a class="button" href="{% url 'user_detail' target.id %}">Cancel</a>{% endif %}
+  </form>
+</section>
+{% endblock %}

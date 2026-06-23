@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="ops-page">
+  <header class="ops-hero">
+    <div>
+      <span class="eyebrow">Service window control</span>
+      <h1>Meal Categories</h1>
+      <p>Manage meal service windows, participation limits and category availability.</p>
+    </div>
+    <div class="ops-actions">
+      <a class="button ghost-action" href="{% url 'category_list' %}"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Refresh</a>
+      <a class="button secondary-action" href="{% url 'category_export' %}"><i class="bi bi-download" aria-hidden="true"></i> Export categories</a>
+      <a class="button primary enterprise-primary" href="{% url 'category_create' %}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Create category</a>
+    </div>
+  </header>
+
+  <section class="ops-kpis" aria-label="Meal category summary">
+    <div class="ops-kpi">
+      <span>Total</span>
+      <strong>{{ total_count }}</strong>
+      <small>Configured categories</small>
+    </div>
+    <div class="ops-kpi">
+      <span>Active</span>
+      <strong>{{ active_count }}</strong>
+      <small>Available for scans</small>
+    </div>
+    <div class="ops-kpi">
+      <span>Upcoming</span>
+      <strong>{{ upcoming_count }}</strong>
+      <small>Services later today</small>
+    </div>
+    <div class="ops-kpi">
+      <span>Capacity</span>
+      <strong>{{ today_capacity }}</strong>
+      <small>Potential claims today</small>
+    </div>
+  </section>
+
+  <form class="ops-toolbar" method="get">
+    <div class="search-control">
+      <i class="bi bi-search" aria-hidden="true"></i>
+      <label for="category-search">Search categories</label>
+      <input id="category-search" type="search" name="q" value="{{ search }}" placeholder="Search by name or service label">
+    </div>
+    <div>
+      <label for="status-filter">Status</label>
+      <select id="status-filter" name="status">
+        <option value="" {% if not status %}selected{% endif %}>All statuses</option>
+        <option value="active" {% if status == "active" %}selected{% endif %}>Active</option>
+        <option value="inactive" {% if status == "inactive" %}selected{% endif %}>Inactive</option>
+        <option value="upcoming" {% if status == "upcoming" %}selected{% endif %}>Upcoming</option>
+      </select>
+    </div>
+    <div>
+      <label for="sort-filter">Sort</label>
+      <select id="sort-filter" name="sort">
+        <option value="start" {% if sort == "start" %}selected{% endif %}>Start time</option>
+        <option value="name" {% if sort == "name" %}selected{% endif %}>Name</option>
+        <option value="capacity" {% if sort == "capacity" %}selected{% endif %}>Capacity</option>
+        <option value="updated" {% if sort == "updated" %}selected{% endif %}>Recently updated</option>
+      </select>
+    </div>
+    <button class="button secondary-action"><i class="bi bi-funnel" aria-hidden="true"></i> Apply</button>
+    <span class="sync-indicator"><i class="bi bi-clock-history" aria-hidden="true"></i> Last synced {{ last_synced|time:"H:i" }}</span>
+  </form>
+
+  {% if categories %}
+    <section class="data-grid-shell">
+      <div class="bulk-bar">
+        <span><i class="bi bi-shield-lock" aria-hidden="true"></i> Audit trail enabled</span>
+        <span>Bulk actions available after selection</span>
+      </div>
+      <table class="ops-table">
+        <thead>
+          <tr>
+            <th scope="col"><input type="checkbox" aria-label="Select all categories"></th>
+            <th scope="col">Category</th>
+            <th scope="col">Operating window</th>
+            <th scope="col">Capacity limit</th>
+            <th scope="col">Status</th>
+            <th scope="col">Usage</th>
+            <th scope="col">Last updated</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in categories %}
+            <tr>
+              <td data-label="Select"><input type="checkbox" aria-label="Select {{ item.name }}"></td>
+              <td data-label="Category">
+                <div class="category-cell">
+                  <span class="category-dot" style="--tag-color: {{ item.colour_tag }}"></span>
+                  <div>
+                    <strong>{{ item.name }}</strong>
+                    <small>{{ item.description|default:"Meal service" }}</small>
+                  </div>
+                </div>
+              </td>
+              <td data-label="Operating window">
+                <span class="time-window">{{ item.starts_at|time:"H:i" }} <i class="bi bi-arrow-right" aria-hidden="true"></i> {{ item.ends_at|time:"H:i" }}</span>
+              </td>
+              <td data-label="Capacity limit">
+                <strong>{{ item.daily_limit_per_user }}</strong>
+                <small class="muted-line">claim{{ item.daily_limit_per_user|pluralize }} per user</small>
+              </td>
+              <td data-label="Status">
+                <span class="status-pill status-{{ item.operational_status|lower }}">{{ item.operational_status }}</span>
+              </td>
+              <td data-label="Usage">
+                <div class="usage-cell">
+                  <span>{{ item.accepted_today }} / {{ item.today_capacity }}</span>
+                  <div class="usage-track"><span style="width: {{ item.usage_percent }}%"></span></div>
+                </div>
+              </td>
+              <td data-label="Last updated">
+                <span>{{ item.updated_at|date:"Y-m-d" }}</span>
+                <small class="muted-line">{{ item.updated_by|default:"System" }}</small>
+              </td>
+              <td data-label="Actions">
+                <div class="row-actions">
+                  <a class="icon-action" href="{% url 'category_edit' item.id %}" title="Edit {{ item.name }}"><i class="bi bi-pencil-square" aria-hidden="true"></i></a>
+                  <form method="post" action="{% url 'category_duplicate' item.id %}">{% csrf_token %}<button class="icon-action" title="Duplicate {{ item.name }}"><i class="bi bi-copy" aria-hidden="true"></i></button></form>
+                  <form method="post" action="{% url 'category_toggle_active' item.id %}">{% csrf_token %}<button class="icon-action" title="{% if item.is_active %}Disable{% else %}Enable{% endif %} {{ item.name }}"><i class="bi {% if item.is_active %}bi-pause-circle{% else %}bi-play-circle{% endif %}" aria-hidden="true"></i></button></form>
+                  <form method="post" action="{% url 'category_delete' item.id %}">{% csrf_token %}<button class="icon-action danger-action" title="Delete {{ item.name }}"><i class="bi bi-trash" aria-hidden="true"></i></button></form>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  {% else %}
+    <section class="empty-ops-state">
+      <i class="bi bi-calendar2-plus" aria-hidden="true"></i>
+      <h2>No meal categories configured</h2>
+      <p>Create the first service window to begin allocating QR ticket claims.</p>
+      <a class="button primary enterprise-primary" href="{% url 'category_create' %}">Create category</a>
+    </section>
+  {% endif %}
+</section>
+{% endblock %}
