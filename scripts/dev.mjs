@@ -24,7 +24,7 @@ const dotEnv = loadDotEnv();
 const env = {
   ...process.env,
   ...dotEnv,
-  DJANGO_DEBUG: process.env.DJANGO_DEBUG ?? dotEnv.DJANGO_DEBUG ?? "1",
+  DJANGO_DEBUG: process.env.DJANGO_DEBUG ?? "1",
   DJANGO_ALLOWED_HOSTS: process.env.DJANGO_ALLOWED_HOSTS ?? "localhost,127.0.0.1",
   CSRF_TRUSTED_ORIGINS:
     process.env.CSRF_TRUSTED_ORIGINS ??

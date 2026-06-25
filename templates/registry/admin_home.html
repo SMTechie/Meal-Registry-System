@@ -1,53 +1,308 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="page-head admin-head">
-  <div>
-    <span class="eyebrow">DevSecOps meal operations</span>
-    <h1>Meal Registry</h1>
-    <p class="page-subtitle">Secure QR access, staff accountability and session-based meal control.</p>
-  </div>
-  <a class="button primary" href="{% url 'user_create' %}"><i class="bi bi-person-plus" aria-hidden="true"></i> Create user</a>
-</section>
-<section class="metrics">
-  <div>
-    <i class="bi bi-people-fill metric-icon" aria-hidden="true"></i>
-    <strong>{{ user_count }}</strong>
-    <span>Total users</span>
-  </div>
-  <div>
-    <i class="bi bi-qr-code-scan metric-icon" aria-hidden="true"></i>
-    <strong>{{ scan_count }}</strong>
-    <span>Total scans</span>
-  </div>
-  <div>
-    <i class="bi bi-tags-fill metric-icon" aria-hidden="true"></i>
-    <strong>{{ categories|length }}</strong>
-    <span>Total categories</span>
-  </div>
-</section>
-<section>
-  <div class="section-title">
+<section class="command-page">
+  <header class="command-header">
     <div>
-      <span class="eyebrow">Audit trail</span>
-      <h2>Recent scans</h2>
+      <span class="command-eyebrow">Live operations</span>
+      <h1>Meal Operations</h1>
+      <p>QR access, meal windows and scan decisions at a glance.</p>
     </div>
-  </div>
-  <table>
-    <thead><tr><th>Time</th><th>User</th><th>Category</th><th>Status</th><th>Staff</th><th>Reason</th></tr></thead>
-    <tbody>
-    {% for scan in recent_scans %}
-      <tr>
-        <td>{{ scan.scanned_at }}</td>
-        <td>{{ scan.user|default:"Unknown" }}</td>
-        <td>{{ scan.category|default:"-" }}</td>
-        <td><span class="status {{ scan.status|lower }}">{{ scan.status }}</span></td>
-        <td>{{ scan.scanned_by }}</td>
-        <td>{{ scan.reason }}</td>
-      </tr>
-    {% empty %}
-      <tr><td colspan="6">No scans recorded yet.</td></tr>
-    {% endfor %}
-    </tbody>
-  </table>
+    <div class="command-actions">
+      <form method="get" class="range-switcher">
+        <label for="range-select">Range</label>
+        <select id="range-select" name="range" onchange="this.form.submit()">
+          {% for value,label in scan_window_options %}
+            <option value="{{ value }}" {% if range_key == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        {% if search %}<input type="hidden" name="q" value="{{ search }}">{% endif %}
+        {% if category_filter %}<input type="hidden" name="category" value="{{ category_filter }}">{% endif %}
+        {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+        {% if staff_filter %}<input type="hidden" name="staff" value="{{ staff_filter }}">{% endif %}
+        {% if sort %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
+      </form>
+      <span class="sync-indicator">Synced {{ last_activity_at|timesince }} ago</span>
+      <a class="button icon-only" href="{% url 'admin_home' %}" title="Refresh"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i></a>
+      <a class="button icon-only" href="{{ export_url }}" title="Export"><i class="bi bi-download" aria-hidden="true"></i></a>
+      <a class="primary enterprise-primary compact-primary" href="{% url 'user_create' %}"><i class="bi bi-person-plus" aria-hidden="true"></i> Create User</a>
+    </div>
+  </header>
+
+  <section class="kpi-grid" aria-label="Operational summary">
+    <article class="kpi-card span-2">
+      <span>Total scans</span>
+      <strong>{{ scan_count }}</strong>
+      <small class="{{ total_trend_class }}">{{ total_label }}</small>
+    </article>
+    <article class="kpi-card span-2">
+      <span>Approved</span>
+      <strong>{{ approved_today }}</strong>
+      <small class="{{ approved_trend_class }}">{{ approved_label }}</small>
+    </article>
+    <article class="kpi-card span-2">
+      <span>Denied</span>
+      <strong>{{ denied_today }}</strong>
+      <small class="{{ denied_trend_class }}">{{ denied_label }}</small>
+    </article>
+    <article class="kpi-card span-3 meal-window-kpi">
+      <span>Meal window</span>
+      <strong>{{ active_window_label }}</strong>
+      <small>{{ active_window_status }} · {{ active_window_time }}</small>
+    </article>
+    <article class="kpi-card span-2">
+      <span>Users</span>
+      <strong>{{ registered_users }}</strong>
+      <small class="{{ users_trend_class }}">{{ users_label }}</small>
+    </article>
+    <article class="kpi-card span-1">
+      <span>Cat.</span>
+      <strong>{{ category_count }}</strong>
+      <small class="{{ category_trend_class }}">{{ category_label }}</small>
+    </article>
+  </section>
+
+  <section class="status-card-grid" aria-label="Live system status">
+    <article class="status-card {{ system_status_class }}">
+      <i class="bi bi-activity" aria-hidden="true"></i>
+      <span>System</span>
+      <strong>{{ system_status }}</strong>
+    </article>
+    <article class="status-card {{ scanner_status_class }}">
+      <i class="bi bi-broadcast-pin" aria-hidden="true"></i>
+      <span>Scanner</span>
+      <strong>{{ scanner_status }}</strong>
+    </article>
+    <article class="status-card {% if current_category %}good{% else %}warn{% endif %}">
+      <i class="bi bi-clock-history" aria-hidden="true"></i>
+      <span>Window</span>
+      <strong>{{ active_window_label }}</strong>
+    </article>
+    <article class="status-card neutral">
+      <i class="bi bi-stopwatch" aria-hidden="true"></i>
+      <span>Last activity</span>
+      <strong>{{ last_activity_at|timesince }} ago</strong>
+    </article>
+  </section>
+
+  <section class="dashboard-12">
+    <section class="command-panel activity-card col-8">
+      <div class="panel-title-row">
+        <div>
+          <span class="command-eyebrow">Recent activity</span>
+          <h2>Scan decisions</h2>
+        </div>
+        <div class="activity-tools">
+          <span class="density-chip">{{ range_key|upper }}</span>
+          <details class="filter-disclosure">
+            <summary><i class="bi bi-funnel" aria-hidden="true"></i> Filters</summary>
+            <form class="compact-filter-grid" method="get" role="search" aria-label="Scan filters">
+              <div class="search-control">
+                <label for="scan-search">Search</label>
+                <i class="bi bi-search" aria-hidden="true"></i>
+                <input id="scan-search" type="search" name="q" value="{{ search }}" placeholder="User, staff, reason or QR">
+              </div>
+              <div>
+                <label for="category-filter">Category</label>
+                <select id="category-filter" name="category">
+                  <option value="">All</option>
+                  {% for category in categories %}
+                    <option value="{{ category.id }}" {% if category_filter == category.id|stringformat:"s" %}selected{% endif %}>{{ category.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label for="status-filter">Status</label>
+                <select id="status-filter" name="status">
+                  <option value="">All</option>
+                  <option value="approved" {% if status_filter == "approved" %}selected{% endif %}>Approved</option>
+                  <option value="denied" {% if status_filter == "denied" %}selected{% endif %}>Denied</option>
+                </select>
+              </div>
+              <div>
+                <label for="staff-filter">Staff</label>
+                <select id="staff-filter" name="staff">
+                  <option value="">All</option>
+                  {% for staff in staff_users %}
+                    <option value="{{ staff.id }}" {% if staff_filter == staff.id|stringformat:"s" %}selected{% endif %}>{{ staff.get_full_name|default:staff.username }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label for="sort-filter">Sort</label>
+                <select id="sort-filter" name="sort">
+                  <option value="recent" {% if sort == "recent" %}selected{% endif %}>Newest</option>
+                  <option value="oldest" {% if sort == "oldest" %}selected{% endif %}>Oldest</option>
+                  <option value="user" {% if sort == "user" %}selected{% endif %}>User</option>
+                  <option value="category" {% if sort == "category" %}selected{% endif %}>Category</option>
+                  <option value="staff" {% if sort == "staff" %}selected{% endif %}>Staff</option>
+                  <option value="status" {% if sort == "status" %}selected{% endif %}>Result</option>
+                </select>
+              </div>
+              <input type="hidden" name="range" value="{{ range_key }}">
+              <button type="submit" class="button secondary-action">Apply</button>
+            </form>
+          </details>
+        </div>
+      </div>
+
+      <div class="activity-table-wrap compact-table-wrap">
+        <table class="activity-table compact-activity-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>User</th>
+              <th>Category</th>
+              <th>Result</th>
+              <th>Staff</th>
+              <th>Reason</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for scan in activity_feed %}
+            <tr>
+              <td><strong>{{ scan.scanned_at|date:"H:i" }}</strong><small>{{ scan.scanned_at|date:"M j" }}</small></td>
+              <td><strong>{{ scan.user.get_full_name|default:scan.user.username|default:"Unknown" }}</strong><small>{% if scan.user %}@{{ scan.user.username }}{% else %}Unmatched QR{% endif %}</small></td>
+              <td>{{ scan.category|default:"-" }}</td>
+              <td>
+                {% if scan.status == "ACCEPTED" %}
+                  <span class="result-badge approved">Approved</span>
+                {% else %}
+                  <span class="result-badge denied">Denied</span>
+                {% endif %}
+              </td>
+              <td>{{ scan.scanned_by.get_full_name|default:scan.scanned_by.username }}</td>
+              <td>{{ scan.reason|default:"-" }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="6">
+                <div class="empty-inline">
+                  <i class="bi bi-qr-code-scan" aria-hidden="true"></i>
+                  <strong>No scans in this view</strong>
+                  <span>Scan activity will appear here as staff process QR meal tickets.</span>
+                  <a class="button secondary-action" href="{% url 'scan' %}">Open Scanner</a>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <aside class="command-panel health-card col-4">
+      <div class="panel-title-row">
+        <div>
+          <span class="command-eyebrow">System health</span>
+          <h2>Operational state</h2>
+        </div>
+        <span class="result-badge {% if current_category %}approved{% else %}warning{% endif %}">{{ active_window_status }}</span>
+      </div>
+
+      <div class="window-compact">
+        <div>
+          <span>Active meal</span>
+          <strong>{{ active_window_label }}</strong>
+          <small>{{ active_window_time }}</small>
+        </div>
+        <div>
+          <span>Capacity</span>
+          <strong>{{ current_category_count }} / {{ current_category_capacity }}</strong>
+          <div class="progress-track"><span style="width: {{ current_category_progress }}%"></span></div>
+        </div>
+      </div>
+
+      <div class="alert-stack">
+        {% for alert in alerts %}
+          <article class="alert-item {{ alert.severity }}">
+            <strong>{{ alert.title }}</strong>
+            <span>{{ alert.detail }}</span>
+          </article>
+        {% endfor %}
+      </div>
+
+      <div class="mini-split">
+        <div>
+          <span>Top processor</span>
+          {% for staff in top_staff|slice:":1" %}
+            <strong>{{ staff.name }}</strong>
+            <small>{{ staff.count }} scans</small>
+          {% empty %}
+            <strong>None today</strong>
+            <small>No staff scan activity</small>
+          {% endfor %}
+        </div>
+        <div>
+          <span>Audit events</span>
+          <strong>{{ recent_audit_events|length }}</strong>
+          <small>Recent admin actions</small>
+        </div>
+      </div>
+    </aside>
+
+    {% if scan_count %}
+      <section class="command-panel analytics-card col-4">
+        <div class="panel-title-row">
+          <div>
+            <span class="command-eyebrow">Scan volume</span>
+            <h2>Scans per hour</h2>
+          </div>
+        </div>
+        <div class="bar-chart compact-bars" aria-label="Scans per hour">
+          {% for bar in hourly_scan_bars %}
+            <span style="height: {{ bar.height }}%" title="{{ bar.label }} · {{ bar.count }} scans"></span>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="command-panel analytics-card col-4">
+        <div class="panel-title-row">
+          <div>
+            <span class="command-eyebrow">Decision rate</span>
+            <h2>Approval vs denial</h2>
+          </div>
+        </div>
+        <div class="rate-bars compact-rates">
+          <div>
+            <span>Approved</span>
+            <strong>{{ approval_rate }}%</strong>
+            <div class="progress-track"><span style="width: {{ approval_rate }}%"></span></div>
+          </div>
+          <div>
+            <span>Denied</span>
+            <strong>{{ denial_rate }}%</strong>
+            <div class="progress-track danger-track"><span style="width: {{ denial_rate }}%"></span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="command-panel analytics-card col-4">
+        <div class="panel-title-row">
+          <div>
+            <span class="command-eyebrow">Accountability</span>
+            <h2>Staff and category mix</h2>
+          </div>
+        </div>
+        <div class="compact-insights">
+          <div>
+            <span>Staff processors</span>
+            {% for staff in top_staff|slice:":3" %}
+              <p><strong>{{ staff.name }}</strong><em>{{ staff.count }}</em></p>
+            {% empty %}
+              <p><strong>No staff activity</strong><em>0</em></p>
+            {% endfor %}
+          </div>
+          <div>
+            <span>Categories</span>
+            {% for category in category_rows|slice:":3" %}
+              <p><strong>{{ category.name }}</strong><em>{{ category.count }}</em></p>
+            {% empty %}
+              <p><strong>No category activity</strong><em>0</em></p>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+    {% endif %}
+  </section>
 </section>
 {% endblock %}

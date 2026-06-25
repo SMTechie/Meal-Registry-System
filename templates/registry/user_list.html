@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block content %}
 <section class="ops-hero admin-head">
   <div>
@@ -8,7 +9,7 @@
   </div>
   <div class="page-actions">
     <span class="sync-indicator">Last synced {{ last_sync|default:"just now" }}</span>
-    <a class="button ghost-action" href="#">Import Users</a>
+    <span class="button ghost-action" aria-disabled="true">Import Users</span>
     <a class="button ghost-action" href="?export=1">Export</a>
     <a class="button ghost-action" href="?">Refresh</a>
     <a class="primary enterprise-primary" href="{% url 'user_create' %}">Create User</a>
@@ -17,77 +18,84 @@
 
 <div class="ops-kpis" role="region" aria-label="Operational overview">
   <div class="ops-kpi">
-    <span>Users</span>
+    <span>Total users</span>
     <strong>{{ users|length }}</strong>
-    <small>Total user accounts</small>
+    <small>All account records</small>
     <div class="metric-icon"><i class="bi bi-people"></i></div>
   </div>
   <div class="ops-kpi">
     <span>Administrators</span>
-    <strong>{{ admins_count|default:"—" }}</strong>
-    <small>Admin & Super Admin</small>
+    <strong>{{ admins_count }}</strong>
+    <small>Admin and super admin accounts</small>
     <div class="metric-icon"><i class="bi bi-shield-lock"></i></div>
   </div>
   <div class="ops-kpi">
     <span>Active</span>
-    <strong>{{ active_count|default:"—" }}</strong>
-    <small>Signed in recently</small>
+    <strong>{{ active_count }}</strong>
+    <small>Currently enabled accounts</small>
     <div class="metric-icon"><i class="bi bi-check2-circle"></i></div>
   </div>
   <div class="ops-kpi">
-    <span>QR Issued</span>
-    <strong>{{ qr_issued_count|default:"—" }}</strong>
-    <small>Credentials issued</small>
+    <span>QR issued</span>
+    <strong>{{ qr_issued_count }}</strong>
+    <small>Unique ticket credentials</small>
     <div class="metric-icon"><i class="bi bi-qr-code"></i></div>
   </div>
   <div class="ops-kpi">
-    <span>Recently Added</span>
-    <strong>{{ recently_added_count|default:"—" }}</strong>
-    <small>Last 7 days</small>
+    <span>Recently added</span>
+    <strong>{{ recently_added_count }}</strong>
+    <small>Created in the last 7 days</small>
     <div class="metric-icon"><i class="bi bi-clock"></i></div>
   </div>
 </div>
 
-<div class="ops-toolbar" role="search" aria-label="User filters">
-  <form method="get" class="search-control" style="margin:0">
-    <label>Search</label>
+<form class="ops-toolbar" method="get" role="search" aria-label="User filters">
+  <div class="search-control">
+    <label for="user-search">Search</label>
     <i class="bi bi-search"></i>
-    <input name="q" placeholder="Search users by name, username, email or QR" value="{{ q|default_if_none:'' }}">
-  </form>
+    <input id="user-search" name="q" type="search" placeholder="Search by name, username, email or QR code" value="{{ q|default_if_none:'' }}">
+  </div>
   <div>
-    <label>Role</label>
-    <select name="role" formmethod="get">
+    <label for="role-filter">Role</label>
+    <select id="role-filter" name="role">
       <option value="">All</option>
-      <option value="SUPER_ADMIN">Super Administrator</option>
-      <option value="ADMIN">Administrator</option>
-      <option value="STAFF">Staff</option>
-      <option value="USER">User</option>
-      <option value="GUEST">Guest</option>
+      <option value="SUPER_ADMIN" {% if role == "SUPER_ADMIN" %}selected{% endif %}>Super Administrator</option>
+      <option value="ADMIN" {% if role == "ADMIN" %}selected{% endif %}>Administrator</option>
+      <option value="STAFF" {% if role == "STAFF" %}selected{% endif %}>Staff</option>
+      <option value="USER" {% if role == "USER" %}selected{% endif %}>User</option>
+      <option value="GUEST" {% if role == "GUEST" %}selected{% endif %}>Guest</option>
     </select>
   </div>
   <div>
-    <label>Status</label>
-    <select name="status" formmethod="get">
-      <option value="">All</option>
-      <option value="active">Active</option>
-      <option value="suspended">Suspended</option>
-      <option value="disabled">Disabled</option>
-      <option value="pending">Pending</option>
+    <label for="status-filter">Status</label>
+    <select id="status-filter" name="status">
+      <option value="" {% if not status %}selected{% endif %}>All</option>
+      <option value="active" {% if status == "active" %}selected{% endif %}>Active</option>
+      <option value="disabled" {% if status == "disabled" %}selected{% endif %}>Disabled</option>
+      <option value="suspended" {% if status == "suspended" %}selected{% endif %}>Suspended</option>
+      <option value="pending" {% if status == "pending" %}selected{% endif %}>Pending</option>
     </select>
   </div>
   <div>
-    <label>Sort</label>
-    <select name="sort" formmethod="get">
-      <option value="recent">Recently Added</option>
-      <option value="name">Name</option>
-      <option value="username">Username</option>
-      <option value="last_active">Last Active</option>
-      <option value="role">Role</option>
+    <label for="sort-filter">Sort</label>
+    <select id="sort-filter" name="sort">
+      <option value="recent" {% if sort == "recent" %}selected{% endif %}>Recently Added</option>
+      <option value="name" {% if sort == "name" %}selected{% endif %}>Name</option>
+      <option value="username" {% if sort == "username" %}selected{% endif %}>Username</option>
+      <option value="last_active" {% if sort == "last_active" %}selected{% endif %}>Last Active</option>
+      <option value="role" {% if sort == "role" %}selected{% endif %}>Role</option>
     </select>
   </div>
   <div style="display:flex;gap:8px;align-items:end">
     <button type="submit" class="button secondary-action">Apply</button>
     <button type="button" id="bulk-toggle" class="button ghost-action">Bulk</button>
+  </div>
+</form>
+
+<div class="section-title" style="margin-top:24px;">
+  <div>
+    <h2>User directory</h2>
+    <p class="page-subtitle" style="margin-top:6px;">Browse QR tickets, access levels, status and activity without leaving the admin console.</p>
   </div>
 </div>
 
@@ -95,11 +103,12 @@
   <div class="bulk-bar">
     <div>Selected <strong id="bulk-count">0</strong></div>
     <div>
-      <button class="button ghost-action" id="bulk-enable">Enable</button>
-      <button class="button ghost-action" id="bulk-disable">Disable</button>
-      <button class="button ghost-action" id="bulk-delete">Delete</button>
+      <button type="button" class="button ghost-action" id="bulk-enable">Enable</button>
+      <button type="button" class="button ghost-action" id="bulk-disable">Disable</button>
+      <button type="button" class="button ghost-action" id="bulk-delete">Delete</button>
     </div>
   </div>
+
   <table class="ops-table" role="table">
     <thead>
       <tr>
@@ -119,10 +128,10 @@
         <td data-label="Select"><input class="row-select" type="checkbox" value="{{ item.id }}"></td>
         <td data-label="User">
           <div class="category-cell">
-            <div style="width:42px;height:42px;border-radius:10px;background:#eef6f6;display:grid;place-items:center;font-weight:900">{{ item.get_full_name|first|default:"U" }}</div>
+            <div style="width:42px;height:42px;border-radius:10px;background:#eef6f6;display:grid;place-items:center;font-weight:900">{{ item.username|first|upper }}</div>
             <div>
               <strong>{{ item.get_full_name|default:item.username }}</strong>
-              <small class="muted-line">@{{ item.username }} • {{ item.email }}</small>
+              <small class="muted-line">@{{ item.username }} &middot; {{ item.email }}</small>
             </div>
           </div>
         </td>
@@ -135,9 +144,6 @@
           {% else %}
             <span class="status-pill status-inactive">Disabled</span>
           {% endif %}
-          {% if item.profile and item.profile.mfa_enabled %}
-            <span class="status-pill" style="margin-left:8px;background:#fff7ed;color:#92400e">MFA</span>
-          {% endif %}
         </td>
         <td data-label="QR">
           {% if item.qr_access_code %}
@@ -145,8 +151,7 @@
               <strong>QR-{{ item.qr_access_code|slice:"-6:" }}</strong>
               <small class="muted-line">Credential assigned</small>
               <div style="margin-top:8px">
-                <a class="icon-action" href="{% url 'user_detail' item.id %}" title="View QR"><i class="bi bi-qr-code"></i></a>
-                <button class="icon-action" data-action="regen" data-user="{{ item.id }}" title="Regenerate QR"><i class="bi bi-arrow-clockwise"></i></button>
+                <a class="icon-action" href="{% url 'user_qr_image' item.id %}" target="_blank" rel="noopener" title="Open QR image"><i class="bi bi-qr-code"></i></a>
               </div>
             </div>
           {% else %}
@@ -156,17 +161,16 @@
         <td data-label="Last activity">
           <div class="usage-cell">
             <small class="muted-line">Last login</small>
-            <strong>{{ item.last_login|timesince }} ago</strong>
+            <strong>{% if item.last_login %}{{ item.last_login|timesince }} ago{% else %}Never{% endif %}</strong>
           </div>
         </td>
         <td data-label="Created">
           <small class="muted-line">{{ item.date_joined|date:"M j, Y" }}</small>
-          <small class="muted-line">{% if item.created_by %}by {{ item.created_by.get_full_name }}{% endif %}</small>
+          <small class="muted-line">Account created</small>
         </td>
         <td class="row-actions" data-label="Actions">
           <a class="icon-action" href="{% url 'user_detail' item.id %}" title="View profile"><i class="bi bi-eye"></i></a>
           <a class="icon-action" href="{% url 'user_edit' item.id %}" title="Edit"><i class="bi bi-pencil"></i></a>
-          <form method="post" action="{% url 'user_detail' item.id %}" style="display:inline">{% csrf_token %}<button class="icon-action" title="Reset QR"><i class="bi bi-shuffle"></i></button></form>
         </td>
       </tr>
     {% empty %}
@@ -178,7 +182,7 @@
             <p>There are no users matching your filters.</p>
             <div style="display:flex;gap:8px">
               <a class="primary" href="{% url 'user_create' %}">Create User</a>
-                        <a class="button ghost-action" href="#">Import users</a>
+              <span class="button ghost-action" aria-disabled="true">Import users</span>
             </div>
           </div>
         </td>
@@ -188,16 +192,15 @@
   </table>
 </div>
 
-<!-- Slide-over placeholder -->
 <div id="user-slide" aria-hidden="true" style="display:none">
-  <div class="data-grid-shell" style="position:fixed;right:20px;top:80px;width:420px;z-index:60;padding:0">
+  <div class="data-grid-shell" style="position:fixed;right:20px;top:80px;width:min(420px,calc(100vw - 40px));z-index:60;padding:0">
     <div style="padding:18px;display:grid;gap:12px;background:#fff;border-radius:12px;border:1px solid var(--control-border);box-shadow:var(--control-shadow)">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <strong id="slide-name">User</strong>
         <button id="slide-close" class="icon-action" title="Close"><i class="bi bi-x"></i></button>
       </div>
       <div id="slide-content">
-        <p class="muted-line">Loading…</p>
+        <p class="muted-line">Loading...</p>
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <a id="slide-profile" class="button ghost-action">Open profile</a>

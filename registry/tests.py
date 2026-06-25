@@ -48,6 +48,13 @@ class AdminPortalTests(TestCase):
         response = self.client.get(reverse("admin_home"))
         self.assertEqual(response.status_code, 403)
 
+    def test_admin_can_open_user_list(self):
+        admin = User.objects.create_user(username="admin", password="Password123!", role=Role.ADMIN)
+        self.client.login(username=admin.username, password="Password123!")
+        response = self.client.get(reverse("user_list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Users")
+
     def test_admin_can_open_category_list(self):
         admin = User.objects.create_user(username="admin", password="Password123!", role=Role.ADMIN)
         self.client.login(username=admin.username, password="Password123!")

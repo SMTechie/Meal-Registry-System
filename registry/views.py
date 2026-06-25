@@ -1,4 +1,7 @@
 from django.contrib import messages
+import csv
+from collections import Counter
+
 from django.contrib.auth.views import redirect_to_login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.hashers import make_password
@@ -10,6 +13,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 import datetime
+from uuid import UUID
 from django.views.decorators.http import require_POST
 
 from .audit import record_event
@@ -23,7 +27,7 @@ from .forms import (
     UserCreateForm,
     UserEditForm,
 )
-from .models import EmailConfiguration, MealCategory, MealScan, OrganizationSettings, Role, User
+from .models import AuditEvent, EmailConfiguration, MealCategory, MealScan, OrganizationSettings, Role, User
 
 
 def admin_required(view_func):
@@ -46,6 +50,20 @@ def staff_required(view_func):
         return view_func(request, *args, **kwargs)
 
     return wrapped
+
+
+def _format_clock(value):
+    return value.strftime("%I:%M %p").lstrip("0")
+
+
+def _trend_label(current, previous):
+    if previous == 0:
+        if current == 0:
+            return "0% vs yesterday", "neutral"
+        return "New vs yesterday", "positive"
+    delta = round(((current - previous) / previous) * 100)
+    sign = "+" if delta >= 0 else ""
+    return f"{sign}{delta}% vs yesterday", "positive" if delta >= 0 else "negative"
 
 
 @login_required
@@ -136,27 +154,346 @@ def claim_scan(request):
 
 @admin_required
 def admin_home(request):
+    now = timezone.localtime()
+    today = now.date()
+    yesterday = today - datetime.timedelta(days=1)
+    start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    range_key = request.GET.get("range", "today").strip()
+    search = request.GET.get("q", "").strip()
+    category_filter = request.GET.get("category", "").strip()
+    status_filter = request.GET.get("status", "").strip()
+    staff_filter = request.GET.get("staff", "").strip()
+    sort = request.GET.get("sort", "recent").strip()
+
+    categories = list(MealCategory.objects.all())
+    staff_users = User.objects.filter(role__in=[Role.STAFF, Role.ADMIN, Role.SUPER_ADMIN]).order_by("first_name", "last_name", "username")
+
+    current_category = next((category for category in categories if category.is_active and category.contains(now.time())), None)
+    current_category_count = 0
+    current_category_capacity = 0
+    current_category_progress = 0
+    active_window_label = "No active meal window"
+    active_window_time = "Awaiting the next active session"
+    active_window_status = "Closed"
+    if current_category:
+        meal_users = User.objects.filter(role=Role.USER, is_active=True).count()
+        current_category_count = MealScan.objects.filter(
+            category=current_category,
+            scan_date=today,
+            status=MealScan.Status.ACCEPTED,
+        ).count()
+        current_category_capacity = max(meal_users * current_category.daily_limit_per_user, 0)
+        current_category_progress = (
+            int((current_category_count / current_category_capacity) * 100)
+            if current_category_capacity
+            else 0
+        )
+        active_window_label = current_category.name
+        active_window_time = f"{_format_clock(current_category.starts_at)} - {_format_clock(current_category.ends_at)}"
+        active_window_status = "Open"
+
+    today_scans = list(MealScan.objects.select_related("user", "category", "scanned_by").filter(scan_date=today))
+    yesterday_scans = list(MealScan.objects.filter(scan_date=yesterday))
+
+    total_scans_today = len(today_scans)
+    approved_today = sum(1 for scan in today_scans if scan.status == MealScan.Status.ACCEPTED)
+    denied_today = sum(1 for scan in today_scans if scan.status == MealScan.Status.DENIED)
+    total_scans_yesterday = len(yesterday_scans)
+    approved_yesterday = sum(1 for scan in yesterday_scans if scan.status == MealScan.Status.ACCEPTED)
+    denied_yesterday = sum(1 for scan in yesterday_scans if scan.status == MealScan.Status.DENIED)
+
+    user_count = User.objects.count()
+    registered_users = User.objects.filter(role=Role.USER).count()
+    category_count = len(categories)
+
+    last_scan = MealScan.objects.select_related("user", "category", "scanned_by").first()
+    latest_audit = AuditEvent.objects.select_related("actor").first()
+    last_activity_at = last_scan.scanned_at if last_scan else None
+    if latest_audit and (last_activity_at is None or latest_audit.created_at > last_activity_at):
+        last_activity_at = latest_audit.created_at
+    if last_activity_at is None:
+        last_activity_at = now
+
+    scan_age = now - last_scan.scanned_at if last_scan else None
+    scanner_status = "Online" if scan_age and scan_age <= datetime.timedelta(minutes=10) else "Idle"
+    scanner_status_class = "good" if scanner_status == "Online" else "warn"
+    system_status = "Healthy" if current_category and total_scans_today else "Monitoring"
+    system_status_class = "good" if current_category else "warn"
+
+    scans_today_feed = MealScan.objects.select_related("user", "category", "scanned_by").filter(scan_date=today)
+    hour_counts = Counter(scan.scanned_at.hour for scan in today_scans)
+    peak_hour = max(hour_counts.values()) if hour_counts else 0
+    hourly_scan_bars = []
+    for hour in range(24):
+        count = hour_counts.get(hour, 0)
+        hourly_scan_bars.append(
+            {
+                "hour": hour,
+                "label": f"{hour:02d}:00",
+                "count": count,
+                "height": 12 if not peak_hour else max(8, round((count / peak_hour) * 100)),
+            }
+        )
+
+    category_counts = Counter((scan.category.name if scan.category else "Unassigned") for scan in today_scans)
+    category_rows = [
+        {
+            "name": name,
+            "count": count,
+            "percent": round((count / total_scans_today) * 100) if total_scans_today else 0,
+        }
+        for name, count in category_counts.most_common(6)
+    ]
+
+    staff_counts = Counter()
+    staff_names = {}
+    repeated_failed_users = Counter()
+    for scan in today_scans:
+        if scan.scanned_by_id:
+            staff_counts[scan.scanned_by_id] += 1
+            staff_names[scan.scanned_by_id] = scan.scanned_by.get_full_name() or scan.scanned_by.username
+        if scan.status == MealScan.Status.DENIED and scan.user_id:
+            repeated_failed_users[scan.user_id] += 1
+    top_staff = [
+        {
+            "name": staff_names.get(user_id, "Staff"),
+            "count": count,
+        }
+        for user_id, count in staff_counts.most_common(5)
+    ]
+
+    approval_rate = round((approved_today / total_scans_today) * 100) if total_scans_today else 0
+    denial_rate = round((denied_today / total_scans_today) * 100) if total_scans_today else 0
+    denied_label, denied_trend_class = _trend_label(denied_today, denied_yesterday)
+    approved_label, approved_trend_class = _trend_label(approved_today, approved_yesterday)
+    total_label, total_trend_class = _trend_label(total_scans_today, total_scans_yesterday)
+    users_label, users_trend_class = _trend_label(user_count, User.objects.filter(date_joined__date=yesterday).count())
+    category_label, category_trend_class = _trend_label(category_count, MealCategory.objects.filter(created_at__date=yesterday).count())
+
+    activity_feed = MealScan.objects.select_related("user", "category", "scanned_by")
+    range_map = {
+        "today": start_of_day,
+        "24h": now - datetime.timedelta(hours=24),
+        "7d": now - datetime.timedelta(days=7),
+        "30d": now - datetime.timedelta(days=30),
+        "all": None,
+    }
+    feed_start = range_map.get(range_key, start_of_day)
+    if feed_start:
+        activity_feed = activity_feed.filter(scanned_at__gte=feed_start)
+    if search:
+        activity_feed = activity_feed.filter(
+            Q(user__username__icontains=search)
+            | Q(user__first_name__icontains=search)
+            | Q(user__last_name__icontains=search)
+            | Q(category__name__icontains=search)
+            | Q(scanned_by__username__icontains=search)
+            | Q(scanned_by__first_name__icontains=search)
+            | Q(scanned_by__last_name__icontains=search)
+            | Q(reason__icontains=search)
+            | Q(raw_code__icontains=search)
+        )
+    if category_filter:
+        activity_feed = activity_feed.filter(category_id=category_filter)
+    if status_filter == "approved":
+        activity_feed = activity_feed.filter(status=MealScan.Status.ACCEPTED)
+    elif status_filter == "denied":
+        activity_feed = activity_feed.filter(status=MealScan.Status.DENIED)
+    if staff_filter:
+        activity_feed = activity_feed.filter(scanned_by_id=staff_filter)
+
+    sort_map = {
+        "recent": ["-scanned_at"],
+        "oldest": ["scanned_at"],
+        "user": ["user__username", "-scanned_at"],
+        "category": ["category__name", "-scanned_at"],
+        "staff": ["scanned_by__username", "-scanned_at"],
+        "status": ["status", "-scanned_at"],
+    }
+    activity_feed = activity_feed.order_by(*sort_map.get(sort, sort_map["recent"]))
+
+    export_query = request.GET.copy()
+    export_query["export"] = "1"
+    export_url = f"?{export_query.urlencode()}"
+
+    if request.GET.get("export") == "1":
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="meal-operations-dashboard.csv"'
+        writer = csv.writer(response)
+        writer.writerow(["Time", "User", "Meal Category", "Result", "Processed By", "Location", "Reason"])
+        for scan in activity_feed[:500]:
+            writer.writerow(
+                [
+                    timezone.localtime(scan.scanned_at).strftime("%Y-%m-%d %H:%M:%S"),
+                    scan.user.get_full_name() or scan.user.username if scan.user else "Unknown",
+                    scan.category.name if scan.category else "-",
+                    scan.get_status_display(),
+                    scan.scanned_by.get_full_name() or scan.scanned_by.username,
+                    "Not captured",
+                    scan.reason,
+                ]
+            )
+        return response
+
+    alerts = []
+    if not current_category:
+        alerts.append(
+            {
+                "severity": "warn",
+                "title": "No active meal window",
+                "detail": "Scanning is running, but no category is currently scheduled for this time.",
+            }
+        )
+    if total_scans_today and denial_rate >= 20:
+        alerts.append(
+            {
+                "severity": "danger",
+                "title": "High denial rate detected",
+                "detail": f"{denied_today} denied scans today ({denial_rate}% of activity).",
+            }
+        )
+    if last_scan and scan_age and scan_age > datetime.timedelta(minutes=15):
+        alerts.append(
+            {
+                "severity": "warn",
+                "title": "No recent scans",
+                "detail": f"Last scan was {timezone.template_localtime(last_scan.scanned_at).strftime('%I:%M %p').lstrip('0')}.",
+            }
+        )
+    if current_category and current_category.ends_at:
+        hours_left = int((timezone.make_aware(datetime.datetime.combine(today, current_category.ends_at)) - now).total_seconds() // 60)
+        if 0 <= hours_left <= 15:
+            alerts.append(
+                {
+                    "severity": "warn",
+                    "title": "Meal window closes soon",
+                    "detail": f"{current_category.name} closes in {hours_left} minutes.",
+                }
+            )
+    if repeated_failed_users:
+        alerts.append(
+            {
+                "severity": "warn",
+                "title": "Repeated failed scans",
+                "detail": f"{sum(1 for count in repeated_failed_users.values() if count > 1)} users have repeated failed attempts today.",
+            }
+        )
+    if not alerts:
+        alerts.append(
+            {
+                "severity": "good",
+                "title": "Operational status healthy",
+                "detail": "No active alerts. Scans, users and categories are within normal operating thresholds.",
+            }
+        )
+
+    recent_audit_events = AuditEvent.objects.select_related("actor").order_by("-created_at")[:6]
+
+    scan_window_options = [
+        ("today", "Today"),
+        ("24h", "Last 24 hours"),
+        ("7d", "Last 7 days"),
+        ("30d", "Last 30 days"),
+        ("all", "All time"),
+    ]
+
     return render(
         request,
         "registry/admin_home.html",
         {
-            "user_count": User.objects.count(),
-            "scan_count": MealScan.objects.count(),
-            "categories": MealCategory.objects.all(),
-            "recent_scans": MealScan.objects.select_related("user", "category", "scanned_by")[:10],
+            "user_count": user_count,
+            "registered_users": registered_users,
+            "scan_count": total_scans_today,
+            "approved_today": approved_today,
+            "denied_today": denied_today,
+            "categories": categories,
+            "category_count": category_count,
+            "current_category": current_category,
+            "current_category_count": current_category_count,
+            "current_category_capacity": current_category_capacity,
+            "current_category_progress": current_category_progress,
+            "active_window_label": active_window_label,
+            "active_window_time": active_window_time,
+            "active_window_status": active_window_status,
+            "scanner_status": scanner_status,
+            "scanner_status_class": scanner_status_class,
+            "system_status": system_status,
+            "system_status_class": system_status_class,
+            "last_activity_at": last_activity_at,
+            "activity_feed": activity_feed[:12],
+            "range_key": range_key,
+            "scan_window_options": scan_window_options,
+            "search": search,
+            "category_filter": category_filter,
+            "status_filter": status_filter,
+            "staff_filter": staff_filter,
+            "sort": sort,
+            "staff_users": staff_users,
+            "hourly_scan_bars": hourly_scan_bars,
+            "category_rows": category_rows,
+            "top_staff": top_staff,
+            "alerts": alerts,
+            "recent_audit_events": recent_audit_events,
+            "approval_rate": approval_rate,
+            "denial_rate": denial_rate,
+            "total_label": total_label,
+            "total_trend_class": total_trend_class,
+            "approved_label": approved_label,
+            "approved_trend_class": approved_trend_class,
+            "denied_label": denied_label,
+            "denied_trend_class": denied_trend_class,
+            "users_label": users_label,
+            "users_trend_class": users_trend_class,
+            "category_label": category_label,
+            "category_trend_class": category_trend_class,
+            "export_url": export_url,
         },
     )
 
 
 @admin_required
 def user_list(request):
-    qs = User.objects.order_by("username")
+    qs = User.objects.all()
     now = timezone.localtime()
     admins_count = User.objects.filter(role__in=[Role.ADMIN, Role.SUPER_ADMIN]).count()
     active_count = User.objects.filter(is_active=True).count()
-    qr_issued_count = User.objects.exclude(qr_access_code__isnull=True).exclude(qr_access_code__exact="").count()
-    recently_added_count = User.objects.filter(date_joined__gte=(now.date() - datetime.timedelta(days=7))).count()
+    qr_issued_count = User.objects.exclude(qr_access_code__isnull=True).count()
+    recently_added_count = User.objects.filter(date_joined__gte=(now - datetime.timedelta(days=7))).count()
     q = request.GET.get("q", "").strip()
+    role = request.GET.get("role", "").strip()
+    status = request.GET.get("status", "").strip()
+    sort = request.GET.get("sort", "recent").strip()
+
+    if q:
+        qs = qs.filter(
+            Q(username__icontains=q)
+            | Q(first_name__icontains=q)
+            | Q(last_name__icontains=q)
+            | Q(email__icontains=q)
+        )
+        try:
+            qs = qs.filter(qr_access_code=UUID(q))
+        except (ValueError, TypeError):
+            pass
+    if role in Role.values:
+        qs = qs.filter(role=role)
+    elif role == "GUEST":
+        qs = qs.none()
+
+    if status == "active":
+        qs = qs.filter(is_active=True)
+    elif status in {"disabled", "suspended", "pending"}:
+        qs = qs.filter(is_active=False)
+
+    sort_map = {
+        "recent": ["-date_joined"],
+        "name": ["first_name", "last_name", "username"],
+        "username": ["username"],
+        "last_active": ["-last_login"],
+        "role": ["role", "username"],
+    }
+    qs = qs.order_by(*sort_map.get(sort, sort_map["recent"]))
+
     return render(
         request,
         "registry/user_list.html",
@@ -168,6 +505,9 @@ def user_list(request):
             "recently_added_count": recently_added_count,
             "last_sync": now,
             "q": q,
+            "role": role,
+            "status": status,
+            "sort": sort,
         },
     )
 
