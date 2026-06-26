@@ -29,6 +29,7 @@ export function PWAInstallButton() {
   const [isIOS, setIsIOS] = useState(false);
   const [isSafariBrowser, setIsSafariBrowser] = useState(false);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
+  const [showInstallGuide, setShowInstallGuide] = useState(false);
 
   useEffect(() => {
     setInstalled(isStandalone());
@@ -59,7 +60,10 @@ export function PWAInstallButton() {
       return;
     }
 
-    if (!promptEvent) return;
+    if (!promptEvent) {
+      setShowInstallGuide(true);
+      return;
+    }
     await promptEvent.prompt();
     await promptEvent.userChoice.catch(() => undefined);
     setPromptEvent(null);
@@ -74,8 +78,6 @@ export function PWAInstallButton() {
     );
   }
 
-  const canClick = isIOS || Boolean(promptEvent);
-
   return (
     <>
       <Button
@@ -83,8 +85,6 @@ export function PWAInstallButton() {
         variant="outline"
         className="w-full"
         onClick={install}
-        disabled={!canClick}
-        title={!canClick ? "Install prompt will appear when the browser allows it." : undefined}
       >
         <AppIcon icon={isIOS ? "solar:iphone-bold-duotone" : promptEvent ? "solar:download-square-bold-duotone" : "solar:smartphone-update-bold-duotone"} className="size-4" />
         {isIOS ? "Install on iOS" : "Install app"}
@@ -126,6 +126,44 @@ export function PWAInstallButton() {
                 </li>
               </ol>
               <Button type="button" className="w-full" onClick={() => setShowIOSGuide(false)}>
+                Done
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showInstallGuide ? (
+        <div className="fixed inset-0 z-[120] grid place-items-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="install-guide-title">
+          <button className="absolute inset-0 cursor-default" type="button" aria-label="Close install guide" onClick={() => setShowInstallGuide(false)} />
+          <div className="relative w-full max-w-md rounded-lg border bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b px-5 py-4">
+              <div>
+                <h2 id="install-guide-title" className="text-lg font-semibold">
+                  Install Meal Registry
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">Use your browser install option.</p>
+              </div>
+              <Button type="button" variant="ghost" size="icon" onClick={() => setShowInstallGuide(false)} aria-label="Close install guide">
+                <AppIcon icon="solar:close-circle-bold-duotone" className="size-5" />
+              </Button>
+            </div>
+            <div className="space-y-4 p-5">
+              <ol className="space-y-3 text-sm">
+                <li className="flex gap-3">
+                  <span className="grid size-7 shrink-0 place-items-center rounded-md bg-primary text-xs font-semibold text-primary-foreground">1</span>
+                  <span>Open the browser menu.</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="grid size-7 shrink-0 place-items-center rounded-md bg-primary text-xs font-semibold text-primary-foreground">2</span>
+                  <span>Choose Install app or Add to Home screen.</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="grid size-7 shrink-0 place-items-center rounded-md bg-primary text-xs font-semibold text-primary-foreground">3</span>
+                  <span>Confirm the install. The app will appear on your device.</span>
+                </li>
+              </ol>
+              <Button type="button" className="w-full" onClick={() => setShowInstallGuide(false)}>
                 Done
               </Button>
             </div>

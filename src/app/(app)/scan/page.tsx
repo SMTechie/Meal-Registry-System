@@ -8,10 +8,7 @@ import { ScannerPanel } from "./scanner-panel";
 
 export default async function ScanPage() {
   await requireRole([Role.STAFF, Role.ADMIN, Role.SUPER_ADMIN]);
-  const [categories, users] = await Promise.all([
-    prisma.mealCategory.findMany({ where: { isActive: true }, orderBy: [{ displayOrder: "asc" }, { startsAt: "asc" }] }),
-    prisma.user.findMany({ where: { role: Role.USER, isActive: true }, take: 5, orderBy: { username: "asc" } })
-  ]);
+  const categories = await prisma.mealCategory.findMany({ where: { isActive: true }, orderBy: [{ displayOrder: "asc" }, { startsAt: "asc" }] });
   const current = categories.find((category) => containsTime(category.startsAt, category.endsAt));
 
   return (
@@ -25,7 +22,7 @@ export default async function ScanPage() {
           <Badge tone={current ? "good" : "warn"}>{current ? `${formatTime(current.startsAt)} - ${formatTime(current.endsAt)}` : "Closed"}</Badge>
         </CardContent>
       </Card>
-      <ScannerPanel recentCodes={users.map((user) => ({ label: `${user.firstName} ${user.lastName}`.trim() || user.username, code: user.qrAccessCode }))} />
+      <ScannerPanel />
     </div>
   );
 }
