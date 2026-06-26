@@ -11,7 +11,7 @@ import { Input, Label } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { containsTime, formatTime, todayStart } from "@/lib/utils";
+import { formatTime, mealWindowState, todayStart } from "@/lib/utils";
 
 function messageFor(error?: string | string[]) {
   const value = Array.isArray(error) ? error[0] : error;
@@ -103,7 +103,9 @@ export default async function MealTimeslotsPage({
           {timeslots.map((timeslot) => {
             const capacity = assistantCount * timeslot.dailyLimitPerUser;
             const usage = capacity ? Math.round((timeslot.mealScans.length / capacity) * 100) : 0;
-            const activeNow = timeslot.isActive && containsTime(timeslot.startsAt, timeslot.endsAt);
+            const state = timeslot.isActive ? mealWindowState(timeslot.startsAt, timeslot.endsAt) : "inactive";
+            const badgeTone = state === "open" ? "good" : state === "upcoming" ? "info" : "neutral";
+            const badgeLabel = state === "open" ? "Open now" : state === "upcoming" ? "Upcoming" : state === "closed" ? "Closed" : "Inactive";
             return (
               <div key={timeslot.id} className="rounded-lg border bg-white p-4">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -117,7 +119,7 @@ export default async function MealTimeslotsPage({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge tone={activeNow ? "good" : timeslot.isActive ? "info" : "neutral"}>{activeNow ? "Open now" : timeslot.isActive ? "Scheduled" : "Inactive"}</Badge>
+                    <Badge tone={badgeTone}>{badgeLabel}</Badge>
                     <form action={toggleCategoryAction}>
                       <input type="hidden" name="id" value={timeslot.id} />
                       <Button variant="outline" size="sm">{timeslot.isActive ? "Disable" : "Enable"}</Button>

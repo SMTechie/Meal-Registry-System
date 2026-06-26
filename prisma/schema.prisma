@@ -116,11 +116,11 @@ model MealCategory {
 model MealScan {
   id          String     @id @default(cuid())
   userId      String?
-  user        User?      @relation("TicketHolder", fields: [userId], references: [id], onDelete: Restrict)
+  user        User?      @relation("TicketHolder", fields: [userId], references: [id], onDelete: SetNull)
   categoryId  String?
   category    MealCategory? @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  scannedById String
-  scannedBy   User       @relation("ScannedBy", fields: [scannedById], references: [id], onDelete: Restrict)
+  scannedById String?
+  scannedBy   User?      @relation("ScannedBy", fields: [scannedById], references: [id], onDelete: SetNull)
   scannedAt   DateTime   @default(now())
   scanDate    DateTime
   status      ScanStatus

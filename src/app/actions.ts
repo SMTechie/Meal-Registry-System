@@ -36,6 +36,23 @@ const userSchema = z.object({
   password: z.string().min(8)
 });
 
+const userUpdateSchema = z.object({
+  id: z.string().min(1),
+  returnTo: z.string().default("/users"),
+  username: z.string().min(2).max(80),
+  firstName: z.string().max(80).default(""),
+  lastName: z.string().max(80).default(""),
+  email: z.string().email(),
+  role: z.nativeEnum(Role),
+  isActive: z.union([z.literal("on"), z.literal("true")]).optional(),
+  password: z.union([z.string().min(8), z.literal("")]).optional()
+});
+
+const deleteUserSchema = z.object({
+  id: z.string().min(1),
+  returnTo: z.string().default("/users")
+});
+
 export async function createUserAction(formData: FormData) {
   const actor = await requireRole([Role.ADMIN, Role.SUPER_ADMIN]);
   const parsed = userSchema.safeParse(Object.fromEntries(formData));
@@ -74,6 +91,87 @@ export async function createUserAction(formData: FormData) {
   revalidatePath("/users");
   revalidatePath("/assistants");
   redirect(`${targetPath}?created=1`);
+}
+
+export async function updateUserAction(formData: FormData) {
+  const actor = await requireRole([Role.ADMIN, Role.SUPER_ADMIN]);
+  const parsed = userUpdateSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    const fallback = String(formData.get("returnTo") ?? "/users");
+    redirect(`${fallback}?error=invalid-user`);
+  }
+
+  const returnTo = parsed.data.returnTo.startsWith("/") ? parsed.data.returnTo : "/users";
+  const passwordHash = parsed.data.password ? await bcrypt.hash(parsed.data.password, 12) : undefined;
+
+  try {
+    await prisma.user.update({
+      where: { id: parsed.data.id },
+      data: {
+        username: parsed.data.username,
+        firstName: parsed.data.firstName,
+        lastName: parsed.data.lastName,
+        email: parsed.data.email,
+        role: parsed.data.role,
+        isActive: parsed.data.isActive === "on" || parsed.data.isActive === "true",
+        ...(passwordHash ? { passwordHash } : {})
+      }
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      const fields = Array.isArray(error.meta?.target) ? error.meta.target.join(", ") : "username or email";
+      redirect(`${returnTo}?error=duplicate-user&fields=${encodeURIComponent(fields)}`);
+    }
+    throw error;
+  }
+
+  await prisma.auditEvent.create({
+    data: {
+      actorId: actor.id,
+      eventType: "USER_UPDATED",
+      detail: `Updated ${parsed.data.username} with role ${parsed.data.role}.`
+    }
+  });
+
+  revalidatePath("/users");
+  revalidatePath("/assistants");
+  revalidatePath(`/users/${parsed.data.id}`);
+  revalidatePath(`/users/${parsed.data.id}/edit`);
+  revalidatePath(`/assistants/${parsed.data.id}`);
+  revalidatePath(`/assistants/${parsed.data.id}/edit`);
+  redirect(returnTo);
+}
+
+export async function deleteUserAction(formData: FormData) {
+  const actor = await requireRole([Role.ADMIN, Role.SUPER_ADMIN]);
+  const parsed = deleteUserSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) redirect("/users?error=invalid-user");
+
+  const returnTo = parsed.data.returnTo.startsWith("/") ? parsed.data.returnTo : "/users";
+  if (actor.id === parsed.data.id) {
+    redirect(`${returnTo}?error=cannot-delete-self`);
+  }
+
+  const target = await prisma.user.findUnique({ where: { id: parsed.data.id } });
+  if (!target) redirect(`${returnTo}?error=invalid-user`);
+
+  await prisma.$transaction([
+    prisma.mealScan.updateMany({ where: { userId: parsed.data.id }, data: { userId: null } }),
+    prisma.mealScan.updateMany({ where: { scannedById: parsed.data.id }, data: { scannedById: null as never } }),
+    prisma.session.deleteMany({ where: { userId: parsed.data.id } }),
+    prisma.user.delete({ where: { id: parsed.data.id } }),
+    prisma.auditEvent.create({
+      data: {
+        actorId: actor.id,
+        eventType: "USER_DELETED",
+        detail: `Deleted ${target.username} with role ${target.role}.`
+      }
+    })
+  ]);
+
+  revalidatePath("/users");
+  revalidatePath("/assistants");
+  redirect(returnTo);
 }
 
 const categorySchema = z.object({

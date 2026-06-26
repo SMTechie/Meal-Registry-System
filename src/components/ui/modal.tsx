@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AppIcon } from "@/components/app-icon";
-import { Button } from "@/components/ui/button";
+import { Button, type ButtonProps } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function Modal({
@@ -10,6 +10,11 @@ export function Modal({
   description,
   triggerLabel,
   triggerIcon,
+  triggerAriaLabel,
+  triggerLabelHidden = false,
+  triggerVariant,
+  triggerSize,
+  triggerClassName,
   children,
   className
 }: {
@@ -17,6 +22,11 @@ export function Modal({
   description?: string;
   triggerLabel: string;
   triggerIcon?: string;
+  triggerAriaLabel?: string;
+  triggerLabelHidden?: boolean;
+  triggerVariant?: ButtonProps["variant"];
+  triggerSize?: ButtonProps["size"];
+  triggerClassName?: string;
   children: React.ReactNode;
   className?: string;
 }) {
@@ -37,9 +47,17 @@ export function Modal({
 
   return (
     <>
-      <Button type="button" onClick={() => setOpen(true)}>
+      <Button
+        type="button"
+        onClick={() => setOpen(true)}
+        variant={triggerVariant}
+        size={triggerSize}
+        className={triggerClassName}
+        aria-label={triggerAriaLabel ?? (triggerLabelHidden ? triggerLabel : undefined)}
+        title={triggerAriaLabel ?? triggerLabel}
+      >
         {triggerIcon ? <AppIcon icon={triggerIcon} className="size-4" /> : null}
-        {triggerLabel}
+        <span className={triggerLabelHidden ? "sr-only" : undefined}>{triggerLabel}</span>
       </Button>
       {open ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="modal-title">

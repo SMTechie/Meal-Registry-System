@@ -14,7 +14,10 @@ export default async function AssistantTagPage({ params }: { params: Promise<{ i
   if (!isAdmin(viewer)) redirect("/");
 
   const { id } = await params;
-  const assistant = await prisma.user.findUnique({ where: { id } });
+  const [assistant, org] = await Promise.all([
+    prisma.user.findUnique({ where: { id } }),
+    prisma.organizationSettings.upsert({ where: { id: 1 }, update: {}, create: { id: 1, name: "Meal Registry System" } })
+  ]);
   if (!assistant || assistant.role !== Role.USER) notFound();
 
   return (
@@ -35,7 +38,7 @@ export default async function AssistantTagPage({ params }: { params: Promise<{ i
       <Card className="mx-auto max-w-md border-slate-300 bg-white print:border-0 print:shadow-none">
         <CardContent className="p-7 text-center">
           <div className="mb-5 rounded-lg bg-slate-950 px-5 py-4 text-white">
-            <p className="text-xs uppercase tracking-wide text-white/65">Meal Registry Tag</p>
+            <p className="text-xs uppercase tracking-wide text-white/65">{org.name || "Meal Registry System"}</p>
             <h2 className="mt-1 text-2xl font-semibold">Marking Assistant</h2>
           </div>
           <img

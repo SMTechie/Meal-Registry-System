@@ -1,27 +1,58 @@
 (function () {
   const video = document.getElementById("camera");
   const canvas = document.getElementById("scanCanvas");
-  const result = document.getElementById("scanResult");
   const startButton = document.getElementById("startScan");
   const stopButton = document.getElementById("stopScan");
   const manualForm = document.getElementById("manualScan");
   const manualCode = document.getElementById("manualCode");
   const scanList = document.getElementById("scanList");
+  const scanPopup = document.getElementById("scanPopup");
+  const scanPopupClose = document.getElementById("scanPopupClose");
+  const scanPopupBackdrop = scanPopup ? scanPopup.querySelector(".scan-modal-backdrop") : null;
   const context = canvas.getContext("2d", { willReadFrequently: true });
   let stream = null;
   let detector = null;
   let scanTimer = null;
   let lastCode = "";
   let lastSentAt = 0;
+  let popupTimer = null;
+  let popupKeyHandler = null;
 
   function csrfToken() {
     return document.querySelector("[name=csrfmiddlewaretoken]").value;
   }
 
-  function setResult(title, body, status) {
-    result.className = `scan-result ${status || ""}`;
-    result.querySelector("h2").textContent = title;
-    result.querySelector("p").textContent = body;
+  function setResult() {}
+
+  function showPopup(title, body, status) {
+    if (!scanPopup) return;
+    scanPopup.className = `scan-modal ${status || ""} is-visible`;
+    scanPopup.querySelector("#scanPopupTitle").textContent = title;
+    scanPopup.querySelector("#scanPopupBody").textContent = body;
+    scanPopup.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+    if (popupTimer) window.clearTimeout(popupTimer);
+    if (popupKeyHandler) window.removeEventListener("keydown", popupKeyHandler);
+    popupKeyHandler = (event) => {
+      if (event.key === "Escape") hidePopup();
+    };
+    window.addEventListener("keydown", popupKeyHandler);
+    popupTimer = window.setTimeout(() => {
+      hidePopup();
+    }, 2800);
+  }
+
+  function hidePopup() {
+    if (!scanPopup) return;
+    if (popupTimer) window.clearTimeout(popupTimer);
+    popupTimer = null;
+    if (popupKeyHandler) {
+      window.removeEventListener("keydown", popupKeyHandler);
+      popupKeyHandler = null;
+    }
+    scanPopup.classList.remove("is-visible", "accepted", "denied");
+    scanPopup.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
   }
 
   function addScannedUser(payload) {
@@ -54,7 +85,9 @@
     }
     const payload = await response.json();
     const heading = payload.status === "ACCEPTED" ? "Accepted" : "Denied";
-    setResult(heading, `${payload.reason} ${payload.user || ""}`, payload.status.toLowerCase());
+    const detail = `${payload.reason} ${payload.user || ""}`.trim();
+    setResult(heading, detail, payload.status.toLowerCase());
+    showPopup(heading, detail, payload.status.toLowerCase());
     addScannedUser(payload);
   }
 
@@ -114,12 +147,16 @@
 
   stopButton.addEventListener("click", () => {
     if (scanTimer) window.clearTimeout(scanTimer);
+    hidePopup();
     if (stream) stream.getTracks().forEach((track) => track.stop());
     stream = null;
     detector = null;
     video.srcObject = null;
     setResult("Stopped", "Scanner is idle.", "");
   });
+
+  if (scanPopupClose) scanPopupClose.addEventListener("click", hidePopup);
+  if (scanPopupBackdrop) scanPopupBackdrop.addEventListener("click", hidePopup);
 
   manualForm.addEventListener("submit", async (event) => {
     event.preventDefault();

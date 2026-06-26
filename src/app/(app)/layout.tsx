@@ -12,6 +12,7 @@ const nav = [
   { href: "/scan", label: "Scanner", icon: "solar:scanner-bold-duotone", staff: true },
   { href: "/assistants", label: "Assistants", icon: "solar:users-group-rounded-bold-duotone", admin: true },
   { href: "/users", label: "System Users", icon: "solar:user-id-bold-duotone", admin: true },
+  { href: "/reports", label: "Reports", icon: "solar:document-text-bold-duotone", admin: true },
   { href: "/timeslots", label: "Meal Timeslots", icon: "solar:clock-circle-bold-duotone", admin: true },
   { href: "/settings", label: "Settings", icon: "solar:settings-bold-duotone", admin: true },
   { href: "/ticket", label: "My Ticket", icon: "solar:ticket-bold-duotone", user: true }
@@ -24,7 +25,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const userLabel = displayName(user);
 
   return (
-    <div className="min-h-screen overflow-x-hidden lg:grid lg:grid-cols-[260px_1fr]">
+    <div className="min-h-screen overflow-x-hidden lg:grid lg:h-screen lg:grid-cols-[260px_1fr] lg:overflow-hidden">
       <header className="sticky top-0 z-30 border-b bg-white/92 px-4 py-3 backdrop-blur print:hidden lg:hidden">
         <div className="flex items-center justify-between gap-3">
           <Link href="/" className="flex items-center gap-3">
@@ -40,8 +41,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </header>
 
-      <aside className="hidden bg-white/88 backdrop-blur print:hidden lg:block lg:min-h-screen lg:border-r">
-        <div className="flex h-full flex-col gap-7 p-5">
+      <aside className="hidden bg-white/88 backdrop-blur print:hidden lg:sticky lg:top-0 lg:block lg:h-screen lg:self-start lg:border-r">
+        <div className="flex h-full flex-col gap-7 overflow-y-auto p-5">
           <Link href="/" className="flex items-center gap-3">
             <div className="grid size-10 place-items-center rounded-lg bg-primary text-primary-foreground">
               <AppIcon icon="solar:qr-code-bold-duotone" className="size-5" />
@@ -67,7 +68,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </form>
         </div>
       </aside>
-      <main className="min-w-0 px-3 py-5 print:p-0 sm:px-6 lg:px-8 lg:py-6">
+      <main className="min-w-0 px-3 py-5 print:p-0 sm:px-6 lg:h-screen lg:overflow-y-auto lg:px-8 lg:py-6">
         <div className="mx-auto max-w-7xl min-w-0">
           <header className="mb-6 hidden flex-col gap-3 print:hidden sm:flex-row sm:items-center sm:justify-between lg:flex">
             <div>

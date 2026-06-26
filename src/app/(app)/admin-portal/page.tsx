@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { containsTime, displayName, formatTime, todayStart, trendLabel } from "@/lib/utils";
+import { containsTime, formatTime, todayStart, trendLabel } from "@/lib/utils";
 
 export default async function AdminPortalPage() {
   await requireRole([Role.ADMIN, Role.SUPER_ADMIN]);
@@ -14,17 +14,11 @@ export default async function AdminPortalPage() {
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
 
-  const [users, categories, todayScans, yesterdayScans, recentScans, auditEvents] = await Promise.all([
+  const [users, categories, todayScans, yesterdayScans] = await Promise.all([
     prisma.user.findMany(),
     prisma.mealCategory.findMany({ orderBy: [{ displayOrder: "asc" }, { startsAt: "asc" }] }),
     prisma.mealScan.findMany({ where: { scanDate: today }, include: { user: true, category: true, scannedBy: true } }),
-    prisma.mealScan.findMany({ where: { scanDate: yesterday } }),
-    prisma.mealScan.findMany({
-      take: 10,
-      orderBy: { scannedAt: "desc" },
-      include: { user: true, category: true, scannedBy: true }
-    }),
-    prisma.auditEvent.findMany({ take: 6, orderBy: { createdAt: "desc" }, include: { actor: true } })
+    prisma.mealScan.findMany({ where: { scanDate: yesterday } })
   ]);
 
   const currentCategory = categories.find((category) => category.isActive && containsTime(category.startsAt, category.endsAt, now));
@@ -128,10 +122,15 @@ export default async function AdminPortalPage() {
           </Card>
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-[420px_1fr]">
+        <section className="grid gap-6">
           <Card data-reveal>
             <CardHeader>
-              <CardTitle>Timeslot Usage</CardTitle>
+              <div className="flex items-center justify-between gap-4">
+                <CardTitle>Timeslot Usage</CardTitle>
+                <a href="/reports" className="text-sm font-medium text-primary hover:underline">
+                  Open full reports
+                </a>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {categoryCounts.map(({ category, count }) => (
@@ -145,74 +144,6 @@ export default async function AdminPortalPage() {
                   </div>
                 </div>
               ))}
-            </CardContent>
-          </Card>
-
-          <Card data-reveal>
-            <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-3 md:hidden">
-                {recentScans.map((scan) => (
-                  <article key={scan.id} className="rounded-lg border bg-white p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h3 className="truncate font-semibold">{displayName(scan.user)}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {scan.scannedAt.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}
-                        </p>
-                      </div>
-                      <Badge tone={scan.status === ScanStatus.ACCEPTED ? "good" : "danger"}>{scan.status}</Badge>
-                    </div>
-                    <div className="mt-4 grid gap-2 text-sm">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-muted-foreground">Timeslot</span>
-                        <span className="font-medium">{scan.category?.name ?? "-"}</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-muted-foreground">Staff</span>
-                        <span className="text-right">{displayName(scan.scannedBy)}</span>
-                      </div>
-                    </div>
-                  </article>
-                ))}
-              </div>
-              <table className="hidden w-full text-left text-sm md:table">
-                <thead className="text-xs uppercase text-muted-foreground">
-                  <tr className="border-b">
-                    <th className="py-3">Time</th>
-                    <th>Assistant</th>
-                    <th>Timeslot</th>
-                    <th>Status</th>
-                    <th>Staff</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentScans.map((scan) => (
-                    <tr key={scan.id} className="border-b last:border-0">
-                      <td className="py-3">{scan.scannedAt.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}</td>
-                      <td>{displayName(scan.user)}</td>
-                      <td>{scan.category?.name ?? "-"}</td>
-                      <td>
-                        <Badge tone={scan.status === ScanStatus.ACCEPTED ? "good" : "danger"}>{scan.status}</Badge>
-                      </td>
-                      <td>{displayName(scan.scannedBy)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="mt-5 border-t pt-4">
-                <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Audit trail</p>
-                <div className="grid gap-2">
-                  {auditEvents.map((event) => (
-                    <div key={event.id} className="flex items-center justify-between gap-3 text-sm">
-                      <span>{event.eventType.replaceAll("_", " ")}</span>
-                      <span className="text-muted-foreground">{displayName(event.actor)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </CardContent>
           </Card>
         </section>

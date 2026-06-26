@@ -213,6 +213,122 @@ code {
   border-left-color: var(--danger, #b42318);
 }
 
+.scan-manual-card {
+  display: grid;
+  gap: 10px;
+  align-self: start;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .96);
+  box-shadow: 0 10px 28px rgba(16, 24, 40, .055);
+}
+
+.scan-manual-card h2 {
+  margin: 0;
+  color: var(--navy, #07111f);
+  font-size: 22px;
+}
+
+.scan-manual-card p {
+  margin: 0;
+  color: var(--muted, #667085);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.scan-manual-card form {
+  display: grid;
+  gap: 10px;
+}
+
+.scan-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s ease;
+}
+
+.scan-modal.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.scan-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(7, 17, 31, .58);
+  backdrop-filter: blur(10px);
+}
+
+.scan-modal-dialog {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 10px;
+  width: min(440px, calc(100vw - 36px));
+  padding: 24px;
+  border: 1px solid rgba(219, 228, 239, .95);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, .98);
+  box-shadow: 0 32px 72px rgba(16, 24, 40, .34);
+  text-align: center;
+  transform: scale(.96);
+  transition: transform .2s ease;
+}
+
+.scan-modal.is-visible .scan-modal-dialog {
+  transform: scale(1);
+}
+
+.scan-modal-dialog .eyebrow {
+  justify-self: center;
+  margin-bottom: 6px;
+}
+
+.scan-modal-dialog h2 {
+  margin: 0;
+  color: var(--navy, #07111f);
+  font-size: clamp(28px, 4vw, 38px);
+  line-height: 1.05;
+}
+
+.scan-modal-dialog p {
+  margin: 0;
+  color: var(--muted, #667085);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.scan-modal-dialog button {
+  justify-self: center;
+  min-width: 180px;
+}
+
+.scan-modal.accepted .scan-modal-dialog {
+  border-top: 6px solid var(--success, #059669);
+}
+
+.scan-modal.denied .scan-modal-dialog {
+  border-top: 6px solid var(--danger, #dc2626);
+}
+
+.scan-modal.accepted .scan-modal-dialog h2 {
+  color: var(--success, #059669);
+}
+
+.scan-modal.denied .scan-modal-dialog h2 {
+  color: var(--danger, #dc2626);
+}
+
 .ops-console-header {
   display: flex;
   align-items: flex-start;
@@ -673,6 +789,15 @@ code {
   .metrics,
   .scan-layout {
     grid-template-columns: 1fr;
+  }
+
+  .scan-manual-card {
+    padding: 18px;
+  }
+
+  .scan-modal-dialog {
+    width: min(360px, calc(100vw - 24px));
+    padding: 20px;
   }
 
   table {
