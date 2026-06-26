@@ -1,51 +1,84 @@
 # Meal Registry System
 
-A Django/PostgreSQL meal allocation system for QR-code based meal tickets.
+A Next.js/React meal allocation system backed by PostgreSQL.
 
-## Features
+## Stack
 
-- Unique QR access code per user.
-- Staff-only scanner portal using device camera resources.
-- Configurable meal categories and per-user daily limits.
-- Role-based access control for User, Staff, Administrator, and Super Administrator.
-- Full audit records for logins, failed logins, logouts, scans, user creation, category changes, branding changes, and email configuration changes.
-- Branding settings for logo, organization name, contact details, and address.
-- Email configuration page with SMTP and OAuth configuration fields.
-- QR email sent when a user is created, with a fixed "Powered By Pop In Solutions" footer.
+- Next.js App Router and React
+- PostgreSQL hosted with Docker Compose locally and Neon in production
+- Prisma ORM and migrations
+- Tailwind CSS with shadcn-compatible theme tokens
+- Iconify icons
+- anime.js powered page reveal animation
 
 ## Local Development
 
-For now, Docker only runs PostgreSQL. The application runs locally through npm without Vite.
-
-```bash
-docker compose up -d db
-npm run dev
-```
-
-Open `http://127.0.0.1:3000`.
-
-The `npm run dev` command is a plain Node wrapper, not Vite. It waits for PostgreSQL on `localhost:5432`, runs Django migrations, bootstraps the default admin/categories, and starts Django's development server.
-
-On Windows PowerShell, if script execution policy blocks `npm.ps1`, run:
+The Docker database is exposed on host port `5434` to avoid conflicts with other local PostgreSQL services.
 
 ```powershell
+docker compose up -d db
+npm.cmd install
+npm.cmd run db:migrate -- --name init
+npm.cmd run db:seed
 npm.cmd run dev
 ```
 
-## Containers
+Open `http://127.0.0.1:3001`.
 
-The production-style nginx and webapp containers are currently commented out in `docker-compose.yml`. The intended production layout remains:
+Default accounts:
 
-- `nginx`: exposes host port `443`.
-- `webapp1` and `webapp2`: run the Django application.
-- `db`: PostgreSQL database.
+- Admin: `admin` / `ChangeMe123!`
+- Staff: `staff` / `ChangeMe123!`
+- Seeded marking assistants are visible from the scanner screen.
 
-## Production-Style Run
+## Useful Commands
 
-```bash
-cp .env.example .env
-# Uncomment nginx, webapp1, webapp2, and their volumes in docker-compose.yml first.
-docker compose up --build
+```powershell
+npm.cmd run build
+npm.cmd run db:deploy
+npm.cmd run db:studio
+docker compose down
 ```
 
-Open `https://localhost`. Plain `http://localhost` is redirected to HTTPS. The default bootstrap admin is controlled by the `DJANGO_SUPERUSER_*` values in `.env`.
+## Deploying To Vercel With Neon
+
+This app is ready for Vercel. The Vercel build command is configured in `vercel.json` and runs:
+
+```bash
+npm run vercel-build
+```
+
+That command generates Prisma Client, applies committed Prisma migrations with `prisma migrate deploy`, and builds Next.js.
+
+Set these Environment Variables in Vercel Project Settings:
+
+```text
+DATABASE_URL=<your Neon pooled connection string>
+DIRECT_URL=<your Neon direct/non-pooled connection string>
+SESSION_SECRET=<a long random secret>
+NEXT_PUBLIC_APP_URL=https://your-vercel-app.vercel.app
+```
+
+For Neon:
+
+- `DATABASE_URL` should use the pooled host, usually ending in `-pooler...neon.tech`.
+- `DIRECT_URL` should use the direct host, usually the same URL but without `-pooler` in the hostname.
+- Keep both values out of git. Add them only in Vercel or local ignored env files.
+
+For the Neon URL supplied for this project:
+
+- Use the supplied pooled URL as `DATABASE_URL`.
+- Use the same URL with the hostname changed from `ep-sparkling-credit-ad6ec2fr-pooler...` to `ep-sparkling-credit-ad6ec2fr...` as `DIRECT_URL`.
+
+After the first production deploy, seed the default admin, staff, assistants, settings and meal timeslots once:
+
+```powershell
+# Use Vercel's env pull or set DATABASE_URL and DIRECT_URL locally first.
+npm.cmd run db:seed
+```
+
+Default seeded login:
+
+- Admin: `admin` / `ChangeMe123!`
+
+Change that password after the first sign-in.

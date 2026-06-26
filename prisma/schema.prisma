@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  USER
+  STAFF
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum ScanStatus {
+  ACCEPTED
+  DENIED
+}
+
+enum AuthMode {
+  SMTP
+  OAUTH
+}
+
+model User {
+  id             String      @id @default(cuid())
+  username       String      @unique
+  firstName      String      @default("")
+  lastName       String      @default("")
+  email          String      @unique
+  passwordHash   String
+  role           Role        @default(USER)
+  qrAccessCode   String      @unique @default(uuid())
+  isActive       Boolean     @default(true)
+  dateJoined     DateTime    @default(now())
+  lastLogin      DateTime?
+  sessions       Session[]
+  mealScans      MealScan[]  @relation("TicketHolder")
+  staffScans     MealScan[]  @relation("ScannedBy")
+  auditEvents    AuditEvent[]
+  createdCategories MealCategory[] @relation("CreatedCategories")
+  updatedCategories MealCategory[] @relation("UpdatedCategories")
+  updatedOrgSettings OrganizationSettings[] @relation("OrgUpdatedBy")
+  updatedEmailSettings EmailConfiguration[] @relation("EmailUpdatedBy")
+
+  @@index([role, isActive])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model OrganizationSettings {
+  id           Int      @id @default(1)
+  name         String   @default("Brebner Primary School")
+  logoUrl      String   @default("")
+  contactEmail String   @default("")
+  contactPhone String   @default("")
+  address      String   @default("")
+  updatedAt    DateTime @updatedAt
+  updatedById  String?
+  updatedBy    User?    @relation("OrgUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+}
+
+model EmailConfiguration {
+  id                 Int      @id @default(1)
+  authMode           AuthMode @default(SMTP)
+  fromEmail          String   @default("no-reply@example.local")
+  smtpHost           String   @default("")
+  smtpPort           Int      @default(587)
+  smtpUsername       String   @default("")
+  smtpPassword       String   @default("")
+  smtpUseTls         Boolean  @default(true)
+  oauthProvider      String   @default("")
+  oauthTenantId      String   @default("")
+  oauthClientId      String   @default("")
+  oauthClientSecret  String   @default("")
+  oauthRefreshToken  String   @default("")
+  updatedAt          DateTime @updatedAt
+  updatedById        String?
+  updatedBy          User?    @relation("EmailUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+}
+
+model MealCategory {
+  id                String     @id @default(cuid())
+  name              String     @unique
+  description       String     @default("")
+  startsAt          String
+  endsAt            String
+  dailyLimitPerUser Int        @default(1)
+  isActive          Boolean    @default(true)
+  colourTag         String     @default("#047c78")
+  displayOrder      Int        @default(0)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  createdById       String?
+  updatedById       String?
+  createdBy         User?      @relation("CreatedCategories", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy         User?      @relation("UpdatedCategories", fields: [updatedById], references: [id], onDelete: SetNull)
+  mealScans         MealScan[]
+
+  @@index([isActive, displayOrder])
+}
+
+model MealScan {
+  id          String     @id @default(cuid())
+  userId      String?
+  user        User?      @relation("TicketHolder", fields: [userId], references: [id], onDelete: Restrict)
+  categoryId  String?
+  category    MealCategory? @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  scannedById String
+  scannedBy   User       @relation("ScannedBy", fields: [scannedById], references: [id], onDelete: Restrict)
+  scannedAt   DateTime   @default(now())
+  scanDate    DateTime
+  status      ScanStatus
+  reason      String     @default("")
+  rawCode     String
+
+  @@index([userId, categoryId, scanDate, status])
+  @@index([scannedById, scannedAt])
+}
+
+model AuditEvent {
+  id          String   @id @default(cuid())
+  actorId     String?
+  actor       User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  eventType   String
+  detail      String   @default("")
+  ipAddress   String   @default("")
+  userAgent   String   @default("")
+  createdAt   DateTime @default(now())
+
+  @@index([eventType, createdAt])
+}
