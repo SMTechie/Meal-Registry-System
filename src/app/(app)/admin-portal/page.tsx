@@ -152,8 +152,33 @@ export default async function AdminPortalPage() {
             <CardHeader>
               <CardTitle>Recent Activity</CardTitle>
             </CardHeader>
-            <CardContent className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-left text-sm">
+            <CardContent>
+              <div className="grid gap-3 md:hidden">
+                {recentScans.map((scan) => (
+                  <article key={scan.id} className="rounded-lg border bg-white p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="truncate font-semibold">{displayName(scan.user)}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {scan.scannedAt.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}
+                        </p>
+                      </div>
+                      <Badge tone={scan.status === ScanStatus.ACCEPTED ? "good" : "danger"}>{scan.status}</Badge>
+                    </div>
+                    <div className="mt-4 grid gap-2 text-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-muted-foreground">Timeslot</span>
+                        <span className="font-medium">{scan.category?.name ?? "-"}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-muted-foreground">Staff</span>
+                        <span className="text-right">{displayName(scan.scannedBy)}</span>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+              <table className="hidden w-full text-left text-sm md:table">
                 <thead className="text-xs uppercase text-muted-foreground">
                   <tr className="border-b">
                     <th className="py-3">Time</th>

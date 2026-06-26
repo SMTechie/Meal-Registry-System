@@ -94,10 +94,37 @@ export default async function SystemUsersPage({
             </div>
           </div>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
+        <CardContent>
           {errorMessage ? <PageAlert type="error">{errorMessage}</PageAlert> : null}
           {params.created ? <PageAlert type="success">System user created successfully.</PageAlert> : null}
-          <table className="w-full min-w-[760px] text-left text-sm">
+          <div className="grid gap-3 md:hidden">
+            {users.map((user) => (
+              <article key={user.id} className="rounded-lg border bg-white p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="truncate font-semibold">{displayName(user)}</h3>
+                    <p className="truncate text-sm text-muted-foreground">{user.email}</p>
+                  </div>
+                  <Badge tone={user.isActive ? "good" : "danger"}>{user.isActive ? "Active" : "Disabled"}</Badge>
+                </div>
+                <div className="mt-4 grid gap-2 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">Role</span>
+                    <span className="font-medium">{user.role.replace("_", " ")}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">Last login</span>
+                    <span className="text-right">{user.lastLogin ? user.lastLogin.toLocaleString("en-ZA") : "Never"}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">Joined</span>
+                    <span>{user.dateJoined.toLocaleDateString("en-ZA")}</span>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+          <table className="hidden w-full text-left text-sm md:table">
             <thead className="text-xs uppercase text-muted-foreground">
               <tr className="border-b">
                 <th className="py-3">User</th>

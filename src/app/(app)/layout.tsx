@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Role } from "@prisma/client";
 import { logoutAction } from "@/app/actions";
 import { AppIcon } from "@/components/app-icon";
+import { MobileMenu } from "@/components/mobile-menu";
 import { Button } from "@/components/ui/button";
 import { requireUser, isAdmin, isStaff } from "@/lib/auth";
 import { displayName } from "@/lib/utils";
@@ -19,18 +20,35 @@ const nav = [
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
   const links = nav.filter((item) => (item.admin && isAdmin(user)) || (item.staff && isStaff(user)) || (item.user && user.role === Role.USER));
+  const roleLabel = user.role === Role.USER ? "MARKING ASSISTANT" : user.role.replace("_", " ");
+  const userLabel = displayName(user);
 
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[260px_1fr]">
-      <aside className="border-b bg-white/88 backdrop-blur print:hidden lg:min-h-screen lg:border-b-0 lg:border-r">
-        <div className="flex h-16 items-center justify-between px-5 lg:h-auto lg:flex-col lg:items-stretch lg:gap-7 lg:p-5">
+    <div className="min-h-screen overflow-x-hidden lg:grid lg:grid-cols-[260px_1fr]">
+      <header className="sticky top-0 z-30 border-b bg-white/92 px-4 py-3 backdrop-blur print:hidden lg:hidden">
+        <div className="flex items-center justify-between gap-3">
+          <Link href="/" className="flex items-center gap-3">
+            <div className="grid size-11 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
+              <AppIcon icon="solar:qr-code-bold-duotone" className="size-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-base font-semibold leading-tight">Meal Registry</p>
+              <p className="truncate text-xs text-muted-foreground">{roleLabel}</p>
+            </div>
+          </Link>
+          <MobileMenu links={links} userLabel={userLabel} roleLabel={roleLabel} />
+        </div>
+      </header>
+
+      <aside className="hidden bg-white/88 backdrop-blur print:hidden lg:block lg:min-h-screen lg:border-r">
+        <div className="flex h-full flex-col gap-7 p-5">
           <Link href="/" className="flex items-center gap-3">
             <div className="grid size-10 place-items-center rounded-lg bg-primary text-primary-foreground">
               <AppIcon icon="solar:qr-code-bold-duotone" className="size-5" />
             </div>
             <div>
               <p className="text-sm font-semibold">Meal Registry</p>
-              <p className="text-xs text-muted-foreground">{user.role === Role.USER ? "MARKING ASSISTANT" : user.role.replace("_", " ")}</p>
+              <p className="text-xs text-muted-foreground">{roleLabel}</p>
             </div>
           </Link>
           <nav className="hidden gap-1 lg:flex lg:flex-col">
@@ -48,21 +66,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </Button>
           </form>
         </div>
-        <nav className="flex gap-1 overflow-x-auto px-4 pb-3 lg:hidden">
-          {links.map((item) => (
-            <Link key={item.href} href={item.href} className="flex shrink-0 items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm">
-              <AppIcon icon={item.icon} className="size-4" />
-              {item.label}
-            </Link>
-          ))}
-        </nav>
       </aside>
-      <main className="px-4 py-6 print:p-0 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <header className="mb-6 flex flex-col gap-3 print:hidden sm:flex-row sm:items-center sm:justify-between">
+      <main className="min-w-0 px-3 py-5 print:p-0 sm:px-6 lg:px-8 lg:py-6">
+        <div className="mx-auto max-w-7xl min-w-0">
+          <header className="mb-6 hidden flex-col gap-3 print:hidden sm:flex-row sm:items-center sm:justify-between lg:flex">
             <div>
               <p className="text-sm text-muted-foreground">Signed in as</p>
-              <h2 className="text-xl font-semibold">{displayName(user)}</h2>
+              <h2 className="text-xl font-semibold">{userLabel}</h2>
             </div>
             <div className="rounded-lg border bg-white px-4 py-2 text-sm text-muted-foreground">
               Africa/Johannesburg - Live operations

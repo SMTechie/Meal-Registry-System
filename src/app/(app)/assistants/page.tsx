@@ -86,10 +86,39 @@ export default async function AssistantsPage({
             </div>
           </div>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
+        <CardContent>
           {errorMessage ? <PageAlert type="error">{errorMessage}</PageAlert> : null}
           {params.created ? <PageAlert type="success">Assistant created successfully.</PageAlert> : null}
-          <table className="w-full min-w-[860px] text-left text-sm">
+          <div className="grid gap-3 md:hidden">
+            {users.map((user) => (
+              <article key={user.id} className="rounded-lg border bg-white p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="truncate font-semibold">{displayName(user)}</h3>
+                    <p className="truncate text-sm text-muted-foreground">{user.email}</p>
+                  </div>
+                  <Badge tone={user.isActive ? "good" : "danger"}>{user.isActive ? "Active" : "Disabled"}</Badge>
+                </div>
+                <div className="mt-4 flex items-center gap-4">
+                  <div className="grid size-20 shrink-0 place-items-center rounded-md border bg-white p-1">
+                    <img src={`/api/users/${user.id}/qr`} alt={`QR code for ${displayName(user)}`} width={70} height={70} className="size-[70px] object-contain" />
+                  </div>
+                  <div className="grid min-w-0 flex-1 gap-2">
+                    <a className={buttonVariants({ variant: "outline", size: "sm" })} href={`/api/users/${user.id}/qr`} download={`${user.username}-meal-qr.png`}>
+                      <AppIcon icon="solar:download-bold-duotone" className="size-4" />
+                      Download QR
+                    </a>
+                    <Link className={buttonVariants({ variant: "secondary", size: "sm" })} href={`/users/${user.id}/tag`}>
+                      <AppIcon icon="solar:printer-bold-duotone" className="size-4" />
+                      Print tag
+                    </Link>
+                  </div>
+                </div>
+                <p className="mt-3 text-xs text-muted-foreground">Joined {user.dateJoined.toLocaleDateString("en-ZA")}</p>
+              </article>
+            ))}
+          </div>
+          <table className="hidden w-full text-left text-sm md:table">
             <thead className="text-xs uppercase text-muted-foreground">
               <tr className="border-b">
                 <th className="py-3">Assistant</th>
