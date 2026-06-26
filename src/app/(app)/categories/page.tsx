@@ -1,11 +1,12 @@
 import { Role } from "@prisma/client";
-import { createCategoryAction, toggleCategoryAction } from "@/app/actions";
+import { createCategoryAction, deleteCategoryAction, toggleCategoryAction, updateCategoryAction } from "@/app/actions";
 import { AppIcon } from "@/components/app-icon";
+import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { FormPendingOverlay } from "@/components/form-pending-overlay";
 import { PageAlert } from "@/components/page-alert";
 import { SubmitButton } from "@/components/submit-button";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input, Label } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
@@ -17,6 +18,8 @@ function messageFor(error?: string | string[]) {
   const value = Array.isArray(error) ? error[0] : error;
   if (value === "duplicate-timeslot") return "A meal timeslot with this name already exists.";
   if (value === "invalid-timeslot") return "Please check the timeslot details and try again.";
+  if (value === "updated") return "Meal timeslot updated successfully.";
+  if (value === "deleted") return "Meal timeslot deleted successfully.";
   return null;
 }
 
@@ -99,7 +102,7 @@ export default async function MealTimeslotsPage({
           </div>
         </CardHeader>
         <CardContent className="grid gap-3">
-          {errorMessage ? <PageAlert type="error">{errorMessage}</PageAlert> : null}
+          {errorMessage ? <PageAlert type={params.error === "updated" || params.error === "deleted" ? "success" : "error"}>{errorMessage}</PageAlert> : null}
           {timeslots.map((timeslot) => {
             const capacity = assistantCount * timeslot.dailyLimitPerUser;
             const usage = capacity ? Math.round((timeslot.mealScans.length / capacity) * 100) : 0;
@@ -118,11 +121,72 @@ export default async function MealTimeslotsPage({
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Badge tone={badgeTone}>{badgeLabel}</Badge>
                     <form action={toggleCategoryAction}>
                       <input type="hidden" name="id" value={timeslot.id} />
                       <Button variant="outline" size="sm">{timeslot.isActive ? "Disable" : "Enable"}</Button>
+                    </form>
+                    <Modal
+                      title={`Edit ${timeslot.name}`}
+                      description="Update this meal timeslot without leaving the page."
+                      triggerLabel="Edit timeslot"
+                      triggerAriaLabel={`Edit ${timeslot.name}`}
+                      triggerIcon="solar:pen-bold-duotone"
+                      triggerVariant="secondary"
+                      triggerSize="icon"
+                      triggerLabelHidden
+                    >
+                      <form action={updateCategoryAction} className="relative space-y-4">
+                        <FormPendingOverlay label="Saving timeslot..." />
+                        <input type="hidden" name="id" value={timeslot.id} />
+                        <input type="hidden" name="returnTo" value="/timeslots?error=updated" />
+                        <div className="space-y-2">
+                          <Label htmlFor={`timeslot-name-${timeslot.id}`}>Meal name</Label>
+                          <Input id={`timeslot-name-${timeslot.id}`} name="name" defaultValue={timeslot.name} required />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`timeslot-description-${timeslot.id}`}>Description</Label>
+                          <Input id={`timeslot-description-${timeslot.id}`} name="description" defaultValue={timeslot.description} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-2">
+                            <Label htmlFor={`timeslot-startsAt-${timeslot.id}`}>Start time</Label>
+                            <Input id={`timeslot-startsAt-${timeslot.id}`} name="startsAt" type="time" defaultValue={timeslot.startsAt} required />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor={`timeslot-endsAt-${timeslot.id}`}>End time</Label>
+                            <Input id={`timeslot-endsAt-${timeslot.id}`} name="endsAt" type="time" defaultValue={timeslot.endsAt} required />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="space-y-2">
+                            <Label htmlFor={`timeslot-limit-${timeslot.id}`}>Meals each</Label>
+                            <Input id={`timeslot-limit-${timeslot.id}`} name="dailyLimitPerUser" type="number" min="1" max="20" defaultValue={timeslot.dailyLimitPerUser} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor={`timeslot-order-${timeslot.id}`}>Order</Label>
+                            <Input id={`timeslot-order-${timeslot.id}`} name="displayOrder" type="number" min="0" max="999" defaultValue={timeslot.displayOrder} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor={`timeslot-colour-${timeslot.id}`}>Colour</Label>
+                            <Input id={`timeslot-colour-${timeslot.id}`} name="colourTag" type="color" defaultValue={timeslot.colourTag} className="p-1" />
+                          </div>
+                        </div>
+                        <SubmitButton icon="solar:diskette-bold-duotone" pendingLabel="Saving timeslot...">Save changes</SubmitButton>
+                      </form>
+                    </Modal>
+                    <form action={deleteCategoryAction}>
+                      <input type="hidden" name="id" value={timeslot.id} />
+                      <input type="hidden" name="returnTo" value="/timeslots" />
+                      <ConfirmDeleteButton
+                        confirmMessage={`Delete ${timeslot.name}? Historical scans will stay, but this timeslot will be removed.`}
+                        className={buttonVariants({ variant: "destructive", size: "icon" })}
+                        aria-label={`Delete ${timeslot.name}`}
+                        title={`Delete ${timeslot.name}`}
+                      >
+                        <AppIcon icon="solar:trash-bin-trash-bold-duotone" className="size-4" />
+                      </ConfirmDeleteButton>
                     </form>
                   </div>
                 </div>

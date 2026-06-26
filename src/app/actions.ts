@@ -184,6 +184,16 @@ const categorySchema = z.object({
   displayOrder: z.coerce.number().int().min(0).max(999)
 });
 
+const categoryUpdateSchema = categorySchema.extend({
+  id: z.string().min(1),
+  returnTo: z.string().default("/timeslots")
+});
+
+const deleteCategorySchema = z.object({
+  id: z.string().min(1),
+  returnTo: z.string().default("/timeslots")
+});
+
 export async function createCategoryAction(formData: FormData) {
   const actor = await requireRole([Role.ADMIN, Role.SUPER_ADMIN]);
   const parsed = categorySchema.safeParse(Object.fromEntries(formData));
@@ -214,7 +224,57 @@ export async function createCategoryAction(formData: FormData) {
 
   revalidatePath("/categories");
   revalidatePath("/timeslots");
+  revalidatePath("/scan");
+  revalidatePath("/admin-portal");
+  revalidatePath("/reports");
   redirect("/timeslots");
+}
+
+export async function updateCategoryAction(formData: FormData) {
+  const actor = await requireRole([Role.ADMIN, Role.SUPER_ADMIN]);
+  const parsed = categoryUpdateSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    const fallback = String(formData.get("returnTo") ?? "/timeslots");
+    redirect(`${fallback}?error=invalid-timeslot`);
+  }
+
+  const returnTo = parsed.data.returnTo.startsWith("/") ? parsed.data.returnTo : "/timeslots";
+
+  try {
+    await prisma.mealCategory.update({
+      where: { id: parsed.data.id },
+      data: {
+        name: parsed.data.name,
+        description: parsed.data.description,
+        startsAt: parsed.data.startsAt,
+        endsAt: parsed.data.endsAt,
+        dailyLimitPerUser: parsed.data.dailyLimitPerUser,
+        colourTag: parsed.data.colourTag,
+        displayOrder: parsed.data.displayOrder,
+        updatedById: actor.id
+      }
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      redirect(`${returnTo}?error=duplicate-timeslot`);
+    }
+    throw error;
+  }
+
+  await prisma.auditEvent.create({
+    data: {
+      actorId: actor.id,
+      eventType: "MEAL_CATEGORY_SAVED",
+      detail: `Updated meal category ${parsed.data.name}.`
+    }
+  });
+
+  revalidatePath("/categories");
+  revalidatePath("/timeslots");
+  revalidatePath("/scan");
+  revalidatePath("/admin-portal");
+  revalidatePath("/reports");
+  redirect(returnTo);
 }
 
 export async function toggleCategoryAction(formData: FormData) {
@@ -236,6 +296,38 @@ export async function toggleCategoryAction(formData: FormData) {
 
   revalidatePath("/categories");
   revalidatePath("/timeslots");
+  revalidatePath("/scan");
+  revalidatePath("/admin-portal");
+  revalidatePath("/reports");
+}
+
+export async function deleteCategoryAction(formData: FormData) {
+  const actor = await requireRole([Role.ADMIN, Role.SUPER_ADMIN]);
+  const parsed = deleteCategorySchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) redirect("/timeslots?error=invalid-timeslot");
+
+  const returnTo = parsed.data.returnTo.startsWith("/") ? parsed.data.returnTo : "/timeslots";
+  const category = await prisma.mealCategory.findUnique({ where: { id: parsed.data.id } });
+  if (!category) redirect(`${returnTo}?error=invalid-timeslot`);
+
+  await prisma.$transaction([
+    prisma.mealScan.updateMany({ where: { categoryId: parsed.data.id }, data: { categoryId: null } }),
+    prisma.mealCategory.delete({ where: { id: parsed.data.id } }),
+    prisma.auditEvent.create({
+      data: {
+        actorId: actor.id,
+        eventType: "MEAL_CATEGORY_DELETED",
+        detail: `Deleted meal category ${category.name}.`
+      }
+    })
+  ]);
+
+  revalidatePath("/categories");
+  revalidatePath("/timeslots");
+  revalidatePath("/scan");
+  revalidatePath("/admin-portal");
+  revalidatePath("/reports");
+  redirect(`${returnTo}?error=deleted`);
 }
 
 const settingsSchema = z.object({
