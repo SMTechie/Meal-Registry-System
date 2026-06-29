@@ -7,8 +7,11 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function displayName(user?: { firstName?: string | null; lastName?: string | null; username: string } | null) {
+export function displayName(
+  user?: { surnameInitials?: string | null; firstName?: string | null; lastName?: string | null; username: string } | null
+) {
   if (!user) return "Unknown";
+  if (user.surnameInitials?.trim()) return user.surnameInitials.trim();
   const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
   return fullName || user.username;
 }

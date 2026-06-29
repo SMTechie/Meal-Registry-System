@@ -30,6 +30,13 @@ model User {
   username       String      @unique
   firstName      String      @default("")
   lastName       String      @default("")
+  surnameInitials String     @default("")
+  title          String      @default("")
+  persalNumber   String      @default("")
+  assistantRole  String      @default("")
+  gender         String      @default("")
+  accommodation  String      @default("")
+  subject        String      @default("")
   email          String      @unique
   passwordHash   String
   role           Role        @default(USER)
@@ -47,6 +54,7 @@ model User {
   updatedEmailSettings EmailConfiguration[] @relation("EmailUpdatedBy")
 
   @@index([role, isActive])
+  @@index([persalNumber])
 }
 
 model Session {

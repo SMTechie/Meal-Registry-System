@@ -24,7 +24,7 @@ export default async function AssistantDetailPage({ params }: { params: Promise<
         <div>
           <span className="eyebrow">Marking assistant</span>
           <h1>{displayName(assistant)}</h1>
-          <p className="page-subtitle">{assistant.email}</p>
+          <p className="page-subtitle">Persal {assistant.persalNumber || assistant.username}</p>
         </div>
         <div className="page-actions">
           <Link className="button" href="/assistants">
@@ -44,7 +44,7 @@ export default async function AssistantDetailPage({ params }: { params: Promise<
           <div className="qr-display access-pass">
             <div className="pass-topline">
               <span>Meal access pass</span>
-              <span>{assistant.role.replace("_", " ")}</span>
+              <span>{assistant.assistantRole || "Marker"}</span>
             </div>
             <div className="qr-bubble">
               <img src={`/api/users/${assistant.id}/qr`} alt={`QR code for ${displayName(assistant)}`} width={280} height={280} className="size-[280px] rounded-lg border bg-white p-3 object-contain" />
@@ -58,16 +58,32 @@ export default async function AssistantDetailPage({ params }: { params: Promise<
 
           <div className="grid gap-4">
             <div className="detail-bubble detail-bubble-wide">
-              <span>Username</span>
-              <strong>{assistant.username}</strong>
-            </div>
-            <div className="detail-bubble detail-bubble-wide">
-              <span>Full name</span>
+              <span>Surname, Initials</span>
               <strong>{displayName(assistant)}</strong>
             </div>
             <div className="detail-bubble detail-bubble-wide">
-              <span>Email</span>
-              <strong>{assistant.email}</strong>
+              <span>Persal #</span>
+              <strong>{assistant.persalNumber || assistant.username}</strong>
+            </div>
+            <div className="detail-bubble detail-bubble-wide">
+              <span>Title</span>
+              <strong>{assistant.title || "Not set"}</strong>
+            </div>
+            <div className="detail-bubble">
+              <span>Role</span>
+              <strong>{assistant.assistantRole || "Marker"}</strong>
+            </div>
+            <div className="detail-bubble">
+              <span>Gender</span>
+              <strong>{assistant.gender || "Not set"}</strong>
+            </div>
+            <div className="detail-bubble">
+              <span>Accom</span>
+              <strong>{assistant.accommodation || "Not set"}</strong>
+            </div>
+            <div className="detail-bubble">
+              <span>Subject</span>
+              <strong>{assistant.subject || "Not set"}</strong>
             </div>
             <div className="detail-bubble">
               <span>Status</span>
@@ -76,6 +92,10 @@ export default async function AssistantDetailPage({ params }: { params: Promise<
             <div className="detail-bubble">
               <span>Joined</span>
               <strong>{formatDateTime(assistant.dateJoined)}</strong>
+            </div>
+            <div className="detail-bubble detail-bubble-wide">
+              <span>Email</span>
+              <strong>{assistant.email}</strong>
             </div>
             <p className="text-sm text-muted-foreground">
               Deleting an assistant will keep their scan history, but remove the account and QR login.

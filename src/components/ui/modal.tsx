@@ -56,7 +56,7 @@ export function Modal({
         aria-label={triggerAriaLabel ?? (triggerLabelHidden ? triggerLabel : undefined)}
         title={triggerAriaLabel ?? triggerLabel}
       >
-        {triggerIcon ? <AppIcon icon={triggerIcon} className="size-4" /> : null}
+        {triggerIcon ? <AppIcon icon={triggerIcon} className={triggerSize === "icon" ? "size-3.5" : "size-4"} /> : null}
         <span className={triggerLabelHidden ? "sr-only" : undefined}>{triggerLabel}</span>
       </Button>
       {open ? (

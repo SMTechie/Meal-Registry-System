@@ -58,7 +58,7 @@ export default async function EditAssistantPage({
           <div className="flex items-center justify-between gap-3">
             <div>
               <CardTitle>{displayName(assistant)}</CardTitle>
-              <p className="mt-1 text-sm text-muted-foreground">{assistant.email}</p>
+              <p className="mt-1 text-sm text-muted-foreground">Persal {assistant.persalNumber || assistant.username}</p>
             </div>
             <div className="flex items-center gap-3">
               <AppIcon icon="solar:users-group-rounded-bold-duotone" className="hidden size-7 text-primary sm:block" />
@@ -73,28 +73,41 @@ export default async function EditAssistantPage({
             <input type="hidden" name="id" value={assistant.id} />
             <input type="hidden" name="returnTo" value={`/assistants/${assistant.id}`} />
             <input type="hidden" name="role" value={Role.USER} />
+            <div className="space-y-2">
+              <Label htmlFor="assistant-surnameInitials">Surname, Initials</Label>
+              <Input id="assistant-surnameInitials" name="surnameInitials" defaultValue={assistant.surnameInitials} required />
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="assistant-firstName">First name</Label>
-                <Input id="assistant-firstName" name="firstName" defaultValue={assistant.firstName} required />
+                <Label htmlFor="assistant-title">Title</Label>
+                <Input id="assistant-title" name="title" defaultValue={assistant.title} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="assistant-lastName">Last name</Label>
-                <Input id="assistant-lastName" name="lastName" defaultValue={assistant.lastName} required />
+                <Label htmlFor="assistant-persalNumber">Persal #</Label>
+                <Input id="assistant-persalNumber" name="username" defaultValue={assistant.persalNumber || assistant.username} required />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="assistant-username">Assistant number</Label>
-              <Input id="assistant-username" name="username" defaultValue={assistant.username} required />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="assistant-roleLabel">Role</Label>
+                <Input id="assistant-roleLabel" name="assistantRole" defaultValue={assistant.assistantRole} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="assistant-gender">Gender</Label>
+                <Input id="assistant-gender" name="gender" defaultValue={assistant.gender} />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="assistant-email">Email</Label>
-              <Input id="assistant-email" name="email" type="email" defaultValue={assistant.email} required />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="assistant-accommodation">Accom</Label>
+                <Input id="assistant-accommodation" name="accommodation" defaultValue={assistant.accommodation} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="assistant-subject">Subject</Label>
+                <Input id="assistant-subject" name="subject" defaultValue={assistant.subject} />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="assistant-password">Reset password</Label>
-              <Input id="assistant-password" name="password" type="password" minLength={8} placeholder="Leave blank to keep current password" />
-            </div>
+            <input type="hidden" name="email" value="" />
             <label className="flex items-center gap-3 rounded-md border px-3 py-2">
               <input type="checkbox" name="isActive" defaultChecked={assistant.isActive} />
               <span>

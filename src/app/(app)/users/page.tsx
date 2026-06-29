@@ -13,6 +13,7 @@ import { Modal } from "@/components/ui/modal";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { displayName, formatDate, formatDateTime } from "@/lib/utils";
+import { SystemUsersTable } from "./system-users-table";
 
 function messageFor(error?: string | string[], fields?: string | string[]) {
   const value = Array.isArray(error) ? error[0] : error;
@@ -234,139 +235,13 @@ export default async function SystemUsersPage({
               </article>
             ))}
           </div>
-          <table className="hidden w-full text-left text-sm md:table">
-            <thead className="text-xs uppercase text-muted-foreground">
-              <tr className="border-b">
-                <th className="py-3">User</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Last login</th>
-                <th>Joined</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr key={user.id} className="border-b last:border-0">
-                  <td className="py-3">
-                    <p className="font-medium">{displayName(user)}</p>
-                    <p className="text-xs text-muted-foreground">{user.email}</p>
-                  </td>
-                  <td>{user.role.replace("_", " ")}</td>
-                  <td>
-                    <Badge tone={user.isActive ? "good" : "danger"}>{user.isActive ? "Active" : "Disabled"}</Badge>
-                  </td>
-                  <td>{user.lastLogin ? formatDateTime(user.lastLogin) : "Never"}</td>
-                  <td>{formatDate(user.dateJoined)}</td>
-                  <td>
-                    <div className="flex flex-wrap gap-2">
-                      <Modal
-                        title={displayName(user)}
-                        description="System user profile"
-                        triggerLabel="View user"
-                        triggerAriaLabel={`View ${displayName(user)}`}
-                        triggerIcon="solar:eye-bold-duotone"
-                        triggerVariant="outline"
-                        triggerSize="icon"
-                        triggerLabelHidden
-                      >
-                        <div className="grid gap-3 text-sm">
-                          <div className="rounded-lg border bg-muted/30 p-4">
-                            <p className="text-xs uppercase tracking-wide text-muted-foreground">Email</p>
-                            <p className="mt-1 font-medium">{user.email}</p>
-                          </div>
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            <div className="rounded-lg border p-4">
-                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Role</p>
-                              <p className="mt-1 font-medium">{user.role.replace("_", " ")}</p>
-                            </div>
-                            <div className="rounded-lg border p-4">
-                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Status</p>
-                              <p className="mt-1 font-medium">{user.isActive ? "Active" : "Disabled"}</p>
-                            </div>
-                            <div className="rounded-lg border p-4">
-                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Last login</p>
-                              <p className="mt-1 font-medium">{user.lastLogin ? formatDateTime(user.lastLogin) : "Never"}</p>
-                            </div>
-                            <div className="rounded-lg border p-4">
-                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Joined</p>
-                              <p className="mt-1 font-medium">{formatDateTime(user.dateJoined)}</p>
-                            </div>
-                          </div>
-                        </div>
-                      </Modal>
-                      <Modal
-                        title={`Edit ${displayName(user)}`}
-                        description="Update this system user without leaving the page."
-                        triggerLabel="Edit user"
-                        triggerAriaLabel={`Edit ${displayName(user)}`}
-                        triggerIcon="solar:pen-bold-duotone"
-                        triggerVariant="secondary"
-                        triggerSize="icon"
-                        triggerLabelHidden
-                      >
-                        <form action={updateUserAction} className="relative space-y-4">
-                          <FormPendingOverlay label="Saving user..." />
-                          <input type="hidden" name="id" value={user.id} />
-                          <input type="hidden" name="returnTo" value="/users?error=updated" />
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-2">
-                              <Label htmlFor={`system-table-edit-firstName-${user.id}`}>First name</Label>
-                              <Input id={`system-table-edit-firstName-${user.id}`} name="firstName" defaultValue={user.firstName} required />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor={`system-table-edit-lastName-${user.id}`}>Last name</Label>
-                              <Input id={`system-table-edit-lastName-${user.id}`} name="lastName" defaultValue={user.lastName} required />
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor={`system-table-edit-username-${user.id}`}>Username</Label>
-                            <Input id={`system-table-edit-username-${user.id}`} name="username" defaultValue={user.username} required />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor={`system-table-edit-email-${user.id}`}>Email</Label>
-                            <Input id={`system-table-edit-email-${user.id}`} name="email" type="email" defaultValue={user.email} required />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor={`system-table-edit-role-${user.id}`}>Access role</Label>
-                            <Select id={`system-table-edit-role-${user.id}`} name="role" defaultValue={user.role}>
-                              <option value={Role.STAFF}>Staff scanner</option>
-                              <option value={Role.ADMIN}>Administrator</option>
-                              <option value={Role.SUPER_ADMIN}>Super administrator</option>
-                            </Select>
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor={`system-table-edit-password-${user.id}`}>Reset password</Label>
-                            <Input id={`system-table-edit-password-${user.id}`} name="password" type="password" minLength={8} placeholder="Leave blank to keep current password" />
-                          </div>
-                          <label className="flex items-center gap-3 rounded-md border px-3 py-2">
-                            <input type="checkbox" name="isActive" defaultChecked={user.isActive} />
-                            <span>
-                              <strong className="block text-sm">Account enabled</strong>
-                              <span className="text-sm text-muted-foreground">Disable this user without removing the record.</span>
-                            </span>
-                          </label>
-                          <SubmitButton icon="solar:diskette-bold-duotone" pendingLabel="Saving changes...">Save changes</SubmitButton>
-                        </form>
-                      </Modal>
-                      <form action={deleteUserAction}>
-                        <input type="hidden" name="id" value={user.id} />
-                        <input type="hidden" name="returnTo" value="/users?error=deleted" />
-                        <ConfirmDeleteButton
-                          confirmMessage={`Delete ${displayName(user)}? The account will be removed, but historical scan records will stay.`}
-                          className={buttonVariants({ variant: "destructive", size: "icon" })}
-                          aria-label={`Delete ${displayName(user)}`}
-                          title={`Delete ${displayName(user)}`}
-                        >
-                          <AppIcon icon="solar:trash-bin-trash-bold-duotone" className="size-4" />
-                        </ConfirmDeleteButton>
-                      </form>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <SystemUsersTable
+            users={users.map((user) => ({
+              ...user,
+              lastLogin: user.lastLogin ? user.lastLogin.toISOString() : null,
+              dateJoined: user.dateJoined.toISOString()
+            }))}
+          />
         </CardContent>
       </Card>
     </div>
