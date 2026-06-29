@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { createUserAction, deleteUserAction, updateUserAction } from "@/app/actions";
 import { AppIcon } from "@/components/app-icon";
 import { AssistantQrTag } from "@/components/assistant-qr-tag";
@@ -53,6 +54,7 @@ export function AssistantsTable({ users }: { users: AssistantRow[] }) {
   const [pageSize, setPageSize] = useState<number>(10);
   const [page, setPage] = useState(1);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
 
   useEffect(() => {
     function handlePointerDown(event: PointerEvent) {
@@ -60,10 +62,14 @@ export function AssistantsTable({ users }: { users: AssistantRow[] }) {
       if (!(target instanceof HTMLElement)) return;
       if (target.closest("[data-assistant-actions-menu]")) return;
       setOpenMenuId(null);
+      setMenuPosition(null);
     }
 
     function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpenMenuId(null);
+      if (event.key === "Escape") {
+        setOpenMenuId(null);
+        setMenuPosition(null);
+      }
     }
 
     document.addEventListener("pointerdown", handlePointerDown);
@@ -156,6 +162,25 @@ export function AssistantsTable({ users }: { users: AssistantRow[] }) {
   function updatePageSize(value: string) {
     setPageSize(Number(value));
     setPage(1);
+  }
+
+  function toggleActionsMenu(userId: string, event: React.MouseEvent<HTMLButtonElement>) {
+    if (openMenuId === userId) {
+      setOpenMenuId(null);
+      setMenuPosition(null);
+      return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const estimatedMenuHeight = 220;
+    const menuWidth = 192;
+    const openUp = window.innerHeight - rect.bottom < estimatedMenuHeight;
+
+    setOpenMenuId(userId);
+    setMenuPosition({
+      top: openUp ? Math.max(12, rect.top - estimatedMenuHeight - 8) : rect.bottom + 8,
+      left: Math.max(12, rect.right - menuWidth)
+    });
   }
 
   const assistantTemplateCsv = encodeURIComponent(
@@ -283,8 +308,8 @@ export function AssistantsTable({ users }: { users: AssistantRow[] }) {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <div className="overflow-x-auto">
+      <div className="overflow-visible rounded-2xl border border-slate-200 bg-white">
+        <div className="overflow-x-auto overflow-y-visible">
         <table className="w-full min-w-[1080px] text-left text-sm">
           <thead className="bg-slate-950 text-white">
             <tr>
@@ -347,7 +372,7 @@ export function AssistantsTable({ users }: { users: AssistantRow[] }) {
           </thead>
           <tbody className="bg-white">
             {pagedUsers.length ? (
-              pagedUsers.map((user) => (
+              pagedUsers.map((user, index) => (
                 <tr key={user.id} className="border-b border-slate-200 align-top last:border-0 hover:bg-slate-50/70">
                   <td className="px-3 py-3">
                     <p className="font-semibold text-slate-950">{displayName(user)}</p>
@@ -373,12 +398,20 @@ export function AssistantsTable({ users }: { users: AssistantRow[] }) {
                           className: "h-9 w-9 rounded-lg border-slate-200 bg-white text-slate-600 shadow-none hover:bg-slate-100"
                         })}
                         aria-label={`Open actions for ${displayName(user)}`}
-                        onClick={() => setOpenMenuId((current) => (current === user.id ? null : user.id))}
+                        onClick={(event) => toggleActionsMenu(user.id, event)}
                       >
                         <AppIcon icon="solar:menu-dots-bold" className="size-4" />
                       </button>
-                      {openMenuId === user.id ? (
-                        <div className="absolute right-0 top-11 z-20 w-48 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+                      {openMenuId === user.id && menuPosition
+                        ? createPortal(
+                        <div
+                          className="fixed z-[80] w-48 rounded-xl border border-slate-200 bg-white p-2 shadow-xl"
+                          data-assistant-actions-menu
+                          style={{
+                            top: menuPosition.top,
+                            left: menuPosition.left
+                          }}
+                        >
                           <div className="grid gap-1">
                             <Modal
                               title={displayName(user)}
@@ -523,7 +556,8 @@ export function AssistantsTable({ users }: { users: AssistantRow[] }) {
                               </ConfirmDeleteButton>
                             </form>
                           </div>
-                        </div>
+                        </div>,
+                        document.body
                       ) : null}
                     </div>
                   </td>

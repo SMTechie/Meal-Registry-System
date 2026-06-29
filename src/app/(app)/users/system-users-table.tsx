@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Role } from "@prisma/client";
 import { deleteUserAction, updateUserAction } from "@/app/actions";
 import { AppIcon } from "@/components/app-icon";
@@ -27,6 +28,7 @@ type SystemUserRow = {
 
 export function SystemUsersTable({ users }: { users: SystemUserRow[] }) {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
 
   useEffect(() => {
     function handlePointerDown(event: PointerEvent) {
@@ -34,10 +36,14 @@ export function SystemUsersTable({ users }: { users: SystemUserRow[] }) {
       if (!(target instanceof HTMLElement)) return;
       if (target.closest("[data-system-user-actions-menu]")) return;
       setOpenMenuId(null);
+      setMenuPosition(null);
     }
 
     function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpenMenuId(null);
+      if (event.key === "Escape") {
+        setOpenMenuId(null);
+        setMenuPosition(null);
+      }
     }
 
     document.addEventListener("pointerdown", handlePointerDown);
@@ -49,8 +55,28 @@ export function SystemUsersTable({ users }: { users: SystemUserRow[] }) {
     };
   }, []);
 
+  function toggleActionsMenu(userId: string, event: React.MouseEvent<HTMLButtonElement>) {
+    if (openMenuId === userId) {
+      setOpenMenuId(null);
+      setMenuPosition(null);
+      return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const estimatedMenuHeight = 176;
+    const menuWidth = 192;
+    const openUp = window.innerHeight - rect.bottom < estimatedMenuHeight;
+
+    setOpenMenuId(userId);
+    setMenuPosition({
+      top: openUp ? Math.max(12, rect.top - estimatedMenuHeight - 8) : rect.bottom + 8,
+      left: Math.max(12, rect.right - menuWidth)
+    });
+  }
+
   return (
-    <table className="hidden w-full text-left text-sm md:table">
+    <div className="overflow-visible">
+      <table className="hidden w-full text-left text-sm md:table">
       <thead className="text-xs uppercase text-muted-foreground">
         <tr className="border-b">
           <th className="py-3">User</th>
@@ -84,12 +110,20 @@ export function SystemUsersTable({ users }: { users: SystemUserRow[] }) {
                     className: "h-9 w-9 rounded-lg border-slate-200 bg-white text-slate-600 shadow-none hover:bg-slate-100"
                   })}
                   aria-label={`Open actions for ${displayName(user)}`}
-                  onClick={() => setOpenMenuId((current) => (current === user.id ? null : user.id))}
+                  onClick={(event) => toggleActionsMenu(user.id, event)}
                 >
                   <AppIcon icon="solar:menu-dots-bold" className="size-4" />
                 </button>
-                {openMenuId === user.id ? (
-                  <div className="absolute right-0 top-11 z-20 w-48 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+                {openMenuId === user.id && menuPosition
+                  ? createPortal(
+                  <div
+                    className="fixed z-[80] w-48 rounded-xl border border-slate-200 bg-white p-2 shadow-xl"
+                    data-system-user-actions-menu
+                    style={{
+                      top: menuPosition.top,
+                      left: menuPosition.left
+                    }}
+                  >
                     <div className="grid gap-1">
                       <Modal
                         title={displayName(user)}
@@ -195,7 +229,8 @@ export function SystemUsersTable({ users }: { users: SystemUserRow[] }) {
                         </ConfirmDeleteButton>
                       </form>
                     </div>
-                  </div>
+                  </div>,
+                  document.body
                 ) : null}
               </div>
             </td>
@@ -203,5 +238,6 @@ export function SystemUsersTable({ users }: { users: SystemUserRow[] }) {
         ))}
       </tbody>
     </table>
+    </div>
   );
 }
